@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, Form, Depends, HTTPException
+from fastapi import FastAPI, Request, Form, Depends
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -10,40 +10,33 @@ import os
 import models
 from database import get_db, engine
 
-app = FastAPI(debug=True)
+app = FastAPI()
 
-# DB init
 models.Base.metadata.create_all(bind=engine)
 
-# Paths
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 
-# ───────── HELPERS ─────────
+# ---------- HELPERS ----------
 
 def get_user_id(request: Request):
-    try:
-        return int(request.cookies.get("user_id", 0))
-    except:
-        return 0
+    return int(request.cookies.get("user_id", 0))
 
 def require_role(request: Request, role: str):
-    user_id = request.cookies.get("user_id")
-    user_role = request.cookies.get("user_role")
-    return user_id and user_role == role
+    return request.cookies.get("user_role") == role
 
 def render(template, request, context={}):
     data = {"request": request}
     data.update(context)
     return templates.TemplateResponse(template, data)
 
-# ───────── AUTH ─────────
+# ---------- LOGIN ----------
 
 @app.get("/", response_class=HTMLResponse)
 def login_page(request: Request):
-    return render("login.html", request, {"error": None})
+    return render("login.html", request)
 
 @app.post("/login")
 def login(request: Request, email: str = Form(...), password: str = Form(...), db: Session = Depends(get_db)):
@@ -55,21 +48,13 @@ def login(request: Request, email: str = Form(...), password: str = Form(...), d
     res = RedirectResponse(f"/{user.role}/dashboard", status_code=302)
     res.set_cookie("user_id", str(user.id))
     res.set_cookie("user_role", user.role)
-    res.set_cookie("user_name", user.name)
     return res
 
-@app.get("/logout")
-def logout():
-    res = RedirectResponse("/", status_code=302)
-    res.delete_cookie("user_id")
-    res.delete_cookie("user_role")
-    res.delete_cookie("user_name")
-    return res
-
-# ───────── STUDENT ASSIGNMENTS (🔥 FINAL FIX) ─────────
+# ---------- STUDENT ASSIGNMENTS (FINAL FIX) ----------
 
 @app.get("/student/assignments", response_class=HTMLResponse)
 def student_assignments(request: Request, db: Session = Depends(get_db)):
+
     if not require_role(request, "student"):
         return RedirectResponse("/", status_code=302)
 
@@ -83,7 +68,7 @@ def student_assignments(request: Request, db: Session = Depends(get_db)):
     for s in subs:
         key = s.assignment_id
 
-        # 🔥 FULL SAFE HANDLING (tuple/dict fix)
+        # 🔥 FULL FIX
         if isinstance(key, tuple):
             key = key[0]
 
@@ -101,7 +86,7 @@ def student_assignments(request: Request, db: Session = Depends(get_db)):
         "submissions": submissions
     })
 
-# ───────── SUBMIT ─────────
+# ---------- SUBMIT ----------
 
 @app.post("/student/assignments/submit")
 def submit_assignment(request: Request,
