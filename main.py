@@ -7,9 +7,12 @@ from sqlalchemy import func
 from datetime import datetime, date
 
 import models
-from database import get_db
+from database import get_db, engine
 
 app = FastAPI(debug=True)
+
+# 🔥 FIX: database tables auto create
+models.Base.metadata.create_all(bind=engine)
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
@@ -32,7 +35,7 @@ def require_role(request: Request, role: str):
 def render(template_name: str, request: Request, context: dict = {}):
     data = {"request": request}
     data.update(context)
-    return templates.TemplateResponse(request, template_name, data)
+    return templates.TemplateResponse(template_name, data)
 
 # ── AUTH ─────────────────────────────────────────────────────────────────
 
