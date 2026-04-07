@@ -1,14 +1,31 @@
 from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, declarative_base
+import os
 
-# ✅ PostgreSQL connection — apna credentials yahan daalo
-DATABASE_URL = "postgresql+psycopg2://postgres:Admin123@localhost:5432/eduportal"
+# 🔥 Render ENV se URL lo
+DATABASE_URL = os.getenv("DATABASE_URL")
 
-engine = create_engine(DATABASE_URL)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+# ❗ agar ENV missing ho to clear error
+if not DATABASE_URL:
+    raise Exception("DATABASE_URL not found. Set it in Render environment variables.")
+
+# 🔥 engine
+engine = create_engine(
+    DATABASE_URL,
+    pool_pre_ping=True
+)
+
+# 🔥 session
+SessionLocal = sessionmaker(
+    autocommit=False,
+    autoflush=False,
+    bind=engine
+)
+
+# 🔥 base
 Base = declarative_base()
 
+# 🔥 dependency
 def get_db():
     db = SessionLocal()
     try:
