@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>EduPortal – Login</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+  <link href="/static/css/style.css" rel="stylesheet"/>
+</head>
+
+<body class="login-body">
+
+  <div class="bg-grid"></div>
+  <div class="glow1"></div>
+  <div class="glow2"></div>
+
+  <div class="login-wrap d-flex align-items-center justify-content-center" style="min-height:100vh;">
+
+    <div class="card-login">
+
+      <!-- 🔥 BRAND INSIDE CARD -->
+      <div class="brand-inside">
+        <div class="brand-icon">🎓</div>
+        <h1 class="brand-title">EduPortal</h1>
+        <p class="brand-sub">Management System</p>
+      </div>
+
+      <!-- <h5 class="login-heading mt-3 text-center">Welcome </h5> -->
+      <p class="login-sub text-center">Login  to your account</p>
+
+      {% if error %}
+      <div class="alert alert-danger auto-hide-alert d-flex align-items-center gap-2 mb-3">
+        <i class="bi bi-exclamation-circle-fill"></i> {{ error }}
+      </div>
+      {% endif %}
+
+      <form action="/login" method="POST">
+        <div class="mb-3">
+          <label class="form-label">Email Address</label>
+          <div class="input-icon-wrap">
+            <i class="bi bi-envelope input-icon"></i>
+            <input type="email" name="email" class="form-control" placeholder="Enter your Email" required/>
+          </div>
+        </div>
+
+        <div class="mb-4">
+          <label class="form-label">Password</label>
+          <div class="input-icon-wrap">
+            <i class="bi bi-lock input-icon"></i>
+            <input type="password" name="password" class="form-control" placeholder="••••••••" required/>
+          </div>
+        </div>
+
+        <button type="submit" class="btn-login">
+          <i class="bi bi-box-arrow-in-right me-2"></i>Login
+        </button>
+      </form>
+
+      
+
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="/static/js/app.js"></script>
+
+</body>
+</html>
