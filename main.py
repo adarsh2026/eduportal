@@ -19,24 +19,19 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 
-# ---------- HELPERS ----------
+# ---------- FIXED RENDER FUNCTION ----------
 
-def get_user_id(request: Request):
-    return int(request.cookies.get("user_id", 0))
-
-def require_role(request: Request, role: str):
-    return request.cookies.get("user_role") == role
-
-def render(template, request, context={}):
-    data = {"request": request}
-    data.update(context)
-    return templates.TemplateResponse(template, data)
+def render(template, request, context=None):
+    if context is None:
+        context = {}
+    context["request"] = request
+    return templates.TemplateResponse(template, context)
 
 # ---------- LOGIN ----------
 
 @app.get("/", response_class=HTMLResponse)
 def login_page(request: Request):
-    return render("login.html", request)
+    return render("login.html", request, {})  # 🔥 FIX HERE
 
 @app.post("/login")
 def login(request: Request, email: str = Form(...), password: str = Form(...), db: Session = Depends(get_db)):
@@ -50,15 +45,15 @@ def login(request: Request, email: str = Form(...), password: str = Form(...), d
     res.set_cookie("user_role", user.role)
     return res
 
-# ---------- STUDENT ASSIGNMENTS (FINAL FIX) ----------
+# ---------- STUDENT ASSIGNMENTS (UNCHANGED SAFE CODE) ----------
 
 @app.get("/student/assignments", response_class=HTMLResponse)
 def student_assignments(request: Request, db: Session = Depends(get_db)):
 
-    if not require_role(request, "student"):
+    if request.cookies.get("user_role") != "student":
         return RedirectResponse("/", status_code=302)
 
-    sid = get_user_id(request)
+    sid = int(request.cookies.get("user_id", 0))
 
     assignments = db.query(models.Assignment).all()
     subs = db.query(models.Submission).filter(models.Submission.student_id == sid).all()
@@ -68,7 +63,6 @@ def student_assignments(request: Request, db: Session = Depends(get_db)):
     for s in subs:
         key = s.assignment_id
 
-        # 🔥 FULL FIX
         if isinstance(key, tuple):
             key = key[0]
 
@@ -94,10 +88,10 @@ def submit_assignment(request: Request,
                       answer: str = Form(...),
                       db: Session = Depends(get_db)):
 
-    if not require_role(request, "student"):
+    if request.cookies.get("user_role") != "student":
         return RedirectResponse("/", status_code=302)
 
-    sid = get_user_id(request)
+    sid = int(request.cookies.get("user_id", 0))
 
     existing = db.query(models.Submission).filter(
         models.Submission.assignment_id == assignment_id,
