@@ -22,11 +22,9 @@
 
     {% for a in assignments %}
 
-    {% if a.id in submissions %}
-      {% set sub = submissions[a.id] %}
-    {% else %}
-      {% set sub = None %}
-    {% endif %}
+    <!-- ✅ FIXED LINE (tuple/dict issue solve) -->
+    {% set aid = a.id | int %}
+    {% set sub = submissions.get(aid) %}
 
     <div class="col-md-6 mb-4">
       <div class="card p-3">
@@ -48,7 +46,7 @@
           </div>
         {% else %}
           <form method="POST" action="/student/assignments/submit">
-            <input type="hidden" name="assignment_id" value="{{ a.id }}"/>
+            <input type="hidden" name="assignment_id" value="{{ aid }}"/>
 
             <textarea name="answer" class="form-control mb-2" required></textarea>
 
