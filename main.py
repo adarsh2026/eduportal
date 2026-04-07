@@ -4,7 +4,6 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from datetime import datetime
-import os
 
 import models
 from database import get_db, engine
@@ -20,14 +19,14 @@ templates = Jinja2Templates(directory="templates")
 def startup():
     models.Base.metadata.create_all(bind=engine)
 
-# Home route
+# Home
 @app.get("/", response_class=HTMLResponse)
 def home(request: Request):
     return templates.TemplateResponse("login.html", {"request": request})
 
 
 # ===============================
-# STUDENT ASSIGNMENTS (FIXED)
+# STUDENT ASSIGNMENTS (FINAL FIX)
 # ===============================
 @app.get("/student/assignments", response_class=HTMLResponse)
 def student_assignments(request: Request, db: Session = Depends(get_db)):
@@ -35,18 +34,21 @@ def student_assignments(request: Request, db: Session = Depends(get_db)):
     assignments = db.query(models.Assignment).all()
     submissions_list = db.query(models.Submission).all()
 
-    # ✅ FINAL FIX (tuple/dict issue solve)
+    # 🔥 FINAL TUPLE/DICT SAFE BUILD
     submissions = {}
     for s in submissions_list:
-        try:
-            key = int(s.assignment_id)
-        except:
-            key = int(s.assignment_id[0]) if isinstance(s.assignment_id, tuple) else int(s.assignment_id)
+        key = s.assignment_id
 
+        if isinstance(key, tuple):
+            key = key[0]
+        elif isinstance(key, dict):
+            key = list(key.values())[0]
+
+        key = int(key)
         submissions[key] = s
 
     return templates.TemplateResponse(
-        "assignment.html",
+        "assignments.html",   # ⚠️ name correct rakho (file ka naam)
         {
             "request": request,
             "assignments": assignments,
