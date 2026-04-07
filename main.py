@@ -5,17 +5,23 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from datetime import datetime, date
+import os
 
 import models
 from database import get_db, engine
 
 app = FastAPI(debug=True)
 
-# 🔥 FIX: database tables auto create
-models.Base.metadata.create_all(bind=engine)
+# 🔥 DB INIT SAFE
+@app.on_event("startup")
+def startup():
+    models.Base.metadata.create_all(bind=engine)
 
-app.mount("/static", StaticFiles(directory="static"), name="static")
-templates = Jinja2Templates(directory="templates")
+# 🔥 SAFE PATH
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
+templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 
 # ── HELPER ────────────────────────────────────────────────────────────────
 def get_user_id(request: Request):
@@ -45,8 +51,8 @@ def login_page(request: Request):
 
 @app.post("/login")
 def login(
-    request:  Request,
-    email:    str = Form(...),
+    request: Request,
+    email: str = Form(...),
     password: str = Form(...),
     db: Session = Depends(get_db)
 ):
@@ -61,7 +67,7 @@ def login(
         return render("login.html", request, {"error": "Invalid email or password"})
 
     response = RedirectResponse(url=f"/{user.role}/dashboard", status_code=302)
-    response.set_cookie("user_id",   str(user.id))
+    response.set_cookie("user_id", str(user.id))
     response.set_cookie("user_role", user.role)
     response.set_cookie("user_name", user.name)
     return response
@@ -74,7 +80,6 @@ def logout():
     response.delete_cookie("user_name")
     return response
 
-
 # ── ADMIN ────────────────────────────────────────────────────────────────
 
 @app.get("/admin/dashboard", response_class=HTMLResponse)
@@ -85,8 +90,8 @@ def admin_dashboard(request: Request, db: Session = Depends(get_db)):
     return render("dashboard.html", request, {
         "teacher_count": db.query(models.User).filter(models.User.role == "teacher").count(),
         "student_count": db.query(models.User).filter(models.User.role == "student").count(),
-        "course_count":  db.query(models.Course).count(),
-        "user_name":     request.cookies.get("user_name", "Admin"),
+        "course_count": db.query(models.Course).count(),
+        "user_name": request.cookies.get("user_name", "Admin"),
     })
 
 @app.get("/admin/teachers", response_class=HTMLResponse)
@@ -95,18 +100,12 @@ def admin_teachers(request: Request, db: Session = Depends(get_db)):
         return RedirectResponse("/", status_code=302)
 
     return render("teachers.html", request, {
-        "teachers":  db.query(models.User).filter(models.User.role == "teacher").all(),
+        "teachers": db.query(models.User).filter(models.User.role == "teacher").all(),
         "user_name": request.cookies.get("user_name", "Admin"),
     })
 
 @app.post("/admin/teachers/add")
-def add_teacher(
-    request: Request,
-    name:     str = Form(...),
-    email:    str = Form(...),
-    password: str = Form(...),
-    db: Session = Depends(get_db)
-):
+def add_teacher(request: Request, name: str = Form(...), email: str = Form(...), password: str = Form(...), db: Session = Depends(get_db)):
     if not require_role(request, "admin"):
         return RedirectResponse("/", status_code=302)
 
@@ -134,18 +133,12 @@ def admin_students(request: Request, db: Session = Depends(get_db)):
         return RedirectResponse("/", status_code=302)
 
     return render("student.html", request, {
-        "students":  db.query(models.User).filter(models.User.role == "student").all(),
+        "students": db.query(models.User).filter(models.User.role == "student").all(),
         "user_name": request.cookies.get("user_name", "Admin"),
     })
 
 @app.post("/admin/students/add")
-def add_student(
-    request: Request,
-    name:     str = Form(...),
-    email:    str = Form(...),
-    password: str = Form(...),
-    db: Session = Depends(get_db)
-):
+def add_student(request: Request, name: str = Form(...), email: str = Form(...), password: str = Form(...), db: Session = Depends(get_db)):
     if not require_role(request, "admin"):
         return RedirectResponse("/", status_code=302)
 
@@ -176,9 +169,9 @@ def teacher_dashboard(request: Request, db: Session = Depends(get_db)):
 
     tid = get_user_id(request)
     return render("dashboard_t.html", request, {
-        "course_count":     db.query(models.Course).filter(models.Course.teacher_id == tid).count(),
+        "course_count": db.query(models.Course).filter(models.Course.teacher_id == tid).count(),
         "assignment_count": db.query(models.Assignment).filter(models.Assignment.teacher_id == tid).count(),
-        "user_name":        request.cookies.get("user_name", "Teacher"),
+        "user_name": request.cookies.get("user_name", "Teacher"),
     })
 
 @app.get("/teacher/courses", response_class=HTMLResponse)
@@ -188,24 +181,9 @@ def teacher_courses(request: Request, db: Session = Depends(get_db)):
 
     tid = get_user_id(request)
     return render("course.html", request, {
-        "courses":   db.query(models.Course).filter(models.Course.teacher_id == tid).all(),
+        "courses": db.query(models.Course).filter(models.Course.teacher_id == tid).all(),
         "user_name": request.cookies.get("user_name", "Teacher"),
     })
-
-@app.post("/teacher/courses/add")
-def create_course(
-    request:     Request,
-    name:        str = Form(...),
-    description: str = Form(""),
-    db: Session = Depends(get_db)
-):
-    if not require_role(request, "teacher"):
-        return RedirectResponse("/", status_code=302)
-
-    tid = get_user_id(request)
-    db.add(models.Course(name=name, description=description, teacher_id=tid))
-    db.commit()
-    return RedirectResponse(url="/teacher/courses", status_code=302)
 
 @app.get("/teacher/notes", response_class=HTMLResponse)
 def teacher_notes(request: Request, db: Session = Depends(get_db)):
@@ -214,26 +192,9 @@ def teacher_notes(request: Request, db: Session = Depends(get_db)):
 
     tid = get_user_id(request)
     return render("notes.html", request, {
-        "courses":   db.query(models.Course).filter(models.Course.teacher_id == tid).all(),
-        "notes":     db.query(models.Note).filter(models.Note.teacher_id == tid).all(),
+        "notes": db.query(models.Note).filter(models.Note.teacher_id == tid).all(),
         "user_name": request.cookies.get("user_name", "Teacher"),
     })
-
-@app.post("/teacher/notes/add")
-def upload_note(
-    request:   Request,
-    title:     str = Form(...),
-    course_id: int = Form(...),
-    content:   str = Form(...),
-    db: Session = Depends(get_db)
-):
-    if not require_role(request, "teacher"):
-        return RedirectResponse("/", status_code=302)
-
-    tid = get_user_id(request)
-    db.add(models.Note(title=title, content=content, course_id=course_id, teacher_id=tid))
-    db.commit()
-    return RedirectResponse(url="/teacher/notes", status_code=302)
 
 @app.get("/teacher/assignments", response_class=HTMLResponse)
 def teacher_assignments(request: Request, db: Session = Depends(get_db)):
@@ -241,34 +202,11 @@ def teacher_assignments(request: Request, db: Session = Depends(get_db)):
         return RedirectResponse("/", status_code=302)
 
     tid = get_user_id(request)
-    return render("assigment.html", request, {
+    return render("assignment.html", request, {
         "assignments": db.query(models.Assignment).filter(models.Assignment.teacher_id == tid).all(),
-        "courses":     db.query(models.Course).filter(models.Course.teacher_id == tid).all(),
-        "user_name":   request.cookies.get("user_name", "Teacher"),
+        "courses": db.query(models.Course).filter(models.Course.teacher_id == tid).all(),
+        "user_name": request.cookies.get("user_name", "Teacher"),
     })
-
-@app.post("/teacher/assignments/add")
-def create_assignment(
-    request:     Request,
-    title:       str = Form(...),
-    course_id:   int = Form(...),
-    description: str = Form(""),
-    due_date:    str = Form(...),
-    db: Session = Depends(get_db)
-):
-    if not require_role(request, "teacher"):
-        return RedirectResponse("/", status_code=302)
-
-    tid = get_user_id(request)
-    db.add(models.Assignment(
-        title=title,
-        description=description,
-        due_date=due_date,
-        course_id=course_id,
-        teacher_id=tid
-    ))
-    db.commit()
-    return RedirectResponse(url="/teacher/assignments", status_code=302)
 
 @app.get("/teacher/attendance", response_class=HTMLResponse)
 def teacher_attendance(request: Request, db: Session = Depends(get_db)):
@@ -276,44 +214,13 @@ def teacher_attendance(request: Request, db: Session = Depends(get_db)):
         return RedirectResponse("/", status_code=302)
 
     tid = get_user_id(request)
-    return render("teacher_attendence.html", request, {
-        "courses":   db.query(models.Course).filter(models.Course.teacher_id == tid).all(),
-        "students":  db.query(models.User).filter(models.User.role == "student").all(),
-        "records":   db.query(models.Attendance).all(),
-        "today":     date.today().isoformat(),
+    return render("teacher_attendance.html", request, {
+        "courses": db.query(models.Course).filter(models.Course.teacher_id == tid).all(),
+        "students": db.query(models.User).filter(models.User.role == "student").all(),
+        "records": db.query(models.Attendance).all(),
+        "today": date.today().isoformat(),
         "user_name": request.cookies.get("user_name", "Teacher"),
     })
-
-@app.post("/teacher/attendance/mark")
-def mark_attendance(
-    request:    Request,
-    course_id:  int = Form(...),
-    student_id: int = Form(...),
-    date:       str = Form(...),
-    status_val: str = Form(...),
-    db: Session = Depends(get_db)
-):
-    if not require_role(request, "teacher"):
-        return RedirectResponse("/", status_code=302)
-
-    existing = db.query(models.Attendance).filter(
-        models.Attendance.student_id == student_id,
-        models.Attendance.course_id  == course_id,
-        models.Attendance.date       == date
-    ).first()
-
-    if existing:
-        existing.status = status_val
-    else:
-        db.add(models.Attendance(
-            course_id=course_id,
-            student_id=student_id,
-            date=date,
-            status=status_val
-        ))
-
-    db.commit()
-    return RedirectResponse(url="/teacher/attendance", status_code=302)
 
 # ── STUDENT ────────────────────────────────────────────────────────────────
 
@@ -322,17 +229,15 @@ def student_dashboard(request: Request, db: Session = Depends(get_db)):
     if not require_role(request, "student"):
         return RedirectResponse("/", status_code=302)
 
-    sid     = get_user_id(request)
+    sid = get_user_id(request)
     records = db.query(models.Attendance).filter(models.Attendance.student_id == sid).all()
     present = sum(1 for r in records if r.status == "present")
-    total   = len(records)
-    att_pct = int((present / total) * 100) if total > 0 else 0
+    total = len(records)
+    pct = int((present / total) * 100) if total > 0 else 0
 
     return render("student_dashboard.html", request, {
-        "course_count":     db.query(models.Course).count(),
-        "submission_count": db.query(models.Submission).filter(models.Submission.student_id == sid).count(),
-        "attendance_pct":   att_pct,
-        "user_name":        request.cookies.get("user_name", "Student"),
+        "attendance_pct": pct,
+        "user_name": request.cookies.get("user_name", "Student"),
     })
 
 @app.get("/student/courses", response_class=HTMLResponse)
@@ -341,7 +246,7 @@ def student_courses(request: Request, db: Session = Depends(get_db)):
         return RedirectResponse("/", status_code=302)
 
     return render("stu_course.html", request, {
-        "courses":   db.query(models.Course).all(),
+        "courses": db.query(models.Course).all(),
         "user_name": request.cookies.get("user_name", "Student"),
     })
 
@@ -351,7 +256,7 @@ def student_notes(request: Request, db: Session = Depends(get_db)):
         return RedirectResponse("/", status_code=302)
 
     return render("stu_note.html", request, {
-        "notes":     db.query(models.Note).all(),
+        "notes": db.query(models.Note).all(),
         "user_name": request.cookies.get("user_name", "Student"),
     })
 
@@ -360,59 +265,30 @@ def student_assignments(request: Request, db: Session = Depends(get_db)):
     if not require_role(request, "student"):
         return RedirectResponse("/", status_code=302)
 
-    sid         = get_user_id(request)
+    sid = get_user_id(request)
     assignments = db.query(models.Assignment).all()
-    subs        = db.query(models.Submission).filter(models.Submission.student_id == sid).all()
+    subs = db.query(models.Submission).filter(models.Submission.student_id == sid).all()
     submissions = {s.assignment_id: s for s in subs}
 
-    return render("assigment_sub.html", request, {
+    return render("assignment_sub.html", request, {
         "assignments": assignments,
         "submissions": submissions,
-        "user_name":   request.cookies.get("user_name", "Student"),
+        "user_name": request.cookies.get("user_name", "Student"),
     })
-
-@app.post("/student/assignments/submit")
-def submit_assignment(
-    request:       Request,
-    assignment_id: int = Form(...),
-    answer:        str = Form(...),
-    db: Session = Depends(get_db)
-):
-    if not require_role(request, "student"):
-        return RedirectResponse("/", status_code=302)
-
-    sid      = get_user_id(request)
-    existing = db.query(models.Submission).filter(
-        models.Submission.assignment_id == assignment_id,
-        models.Submission.student_id    == sid
-    ).first()
-
-    if not existing:
-        db.add(models.Submission(
-            assignment_id=assignment_id,
-            student_id=sid,
-            answer=answer,
-            submitted_at=datetime.now().strftime("%Y-%m-%d %H:%M")
-        ))
-        db.commit()
-
-    return RedirectResponse(url="/student/assignments", status_code=302)
 
 @app.get("/student/attendance", response_class=HTMLResponse)
 def student_attendance(request: Request, db: Session = Depends(get_db)):
     if not require_role(request, "student"):
         return RedirectResponse("/", status_code=302)
 
-    sid     = get_user_id(request)
+    sid = get_user_id(request)
     records = db.query(models.Attendance).filter(models.Attendance.student_id == sid).all()
     present = sum(1 for r in records if r.status == "present")
-    total   = len(records)
-    pct     = int((present / total) * 100) if total > 0 else 0
+    total = len(records)
+    pct = int((present / total) * 100) if total > 0 else 0
 
-    return render("stu_attendence.html", request, {
+    return render("stu_attendance.html", request, {
         "records": records,
-        "present": present,
-        "total":   total,
-        "pct":     pct,
+        "pct": pct,
         "user_name": request.cookies.get("user_name", "Student"),
     })
