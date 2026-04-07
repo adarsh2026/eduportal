@@ -224,42 +224,6 @@ def teacher_attendance(request: Request, db: Session = Depends(get_db)):
 
 # ── STUDENT ────────────────────────────────────────────────────────────────
 
-@app.get("/student/dashboard", response_class=HTMLResponse)
-def student_dashboard(request: Request, db: Session = Depends(get_db)):
-    if not require_role(request, "student"):
-        return RedirectResponse("/", status_code=302)
-
-    sid = get_user_id(request)
-    records = db.query(models.Attendance).filter(models.Attendance.student_id == sid).all()
-    present = sum(1 for r in records if r.status == "present")
-    total = len(records)
-    pct = int((present / total) * 100) if total > 0 else 0
-
-    return render("student_dashboard.html", request, {
-        "attendance_pct": pct,
-        "user_name": request.cookies.get("user_name", "Student"),
-    })
-
-@app.get("/student/courses", response_class=HTMLResponse)
-def student_courses(request: Request, db: Session = Depends(get_db)):
-    if not require_role(request, "student"):
-        return RedirectResponse("/", status_code=302)
-
-    return render("stu_course.html", request, {
-        "courses": db.query(models.Course).all(),
-        "user_name": request.cookies.get("user_name", "Student"),
-    })
-
-@app.get("/student/notes", response_class=HTMLResponse)
-def student_notes(request: Request, db: Session = Depends(get_db)):
-    if not require_role(request, "student"):
-        return RedirectResponse("/", status_code=302)
-
-    return render("stu_note.html", request, {
-        "notes": db.query(models.Note).all(),
-        "user_name": request.cookies.get("user_name", "Student"),
-    })
-
 @app.get("/student/assignments", response_class=HTMLResponse)
 def student_assignments(request: Request, db: Session = Depends(get_db)):
     if not require_role(request, "student"):
@@ -268,27 +232,17 @@ def student_assignments(request: Request, db: Session = Depends(get_db)):
     sid = get_user_id(request)
     assignments = db.query(models.Assignment).all()
     subs = db.query(models.Submission).filter(models.Submission.student_id == sid).all()
-    submissions = {s.assignment_id: s for s in subs}
+
+    # 🔥 FINAL FIX (tuple safe)
+    submissions = {}
+    for s in subs:
+        key = s.assignment_id
+        if isinstance(key, tuple):
+            key = key[0]
+        submissions[int(key)] = s
 
     return render("assignment_sub.html", request, {
         "assignments": assignments,
         "submissions": submissions,
-        "user_name": request.cookies.get("user_name", "Student"),
-    })
-
-@app.get("/student/attendance", response_class=HTMLResponse)
-def student_attendance(request: Request, db: Session = Depends(get_db)):
-    if not require_role(request, "student"):
-        return RedirectResponse("/", status_code=302)
-
-    sid = get_user_id(request)
-    records = db.query(models.Attendance).filter(models.Attendance.student_id == sid).all()
-    present = sum(1 for r in records if r.status == "present")
-    total = len(records)
-    pct = int((present / total) * 100) if total > 0 else 0
-
-    return render("stu_attendance.html", request, {
-        "records": records,
-        "pct": pct,
         "user_name": request.cookies.get("user_name", "Student"),
     })
