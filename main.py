@@ -51,7 +51,7 @@ def render(template, request, data=None):
 
 def get_user_from_cookies(request: Request):
     return {
-        "user_id": request.cookies.get("user_id", ""),
+        "user_id":   request.cookies.get("user_id", ""),
         "user_role": request.cookies.get("user_role", ""),
         "user_name": urllib.parse.unquote(request.cookies.get("user_name", "Guest")),
     }
@@ -64,11 +64,9 @@ def get_user_from_cookies(request: Request):
 def home(request: Request):
     return render("login.html", request)
 
-
 @app.get("/login", response_class=HTMLResponse)
 def login_page(request: Request):
     return render("login.html", request)
-
 
 @app.post("/login")
 def login(
@@ -88,11 +86,10 @@ def login(
         return render("login.html", request, {"error": "Invalid email or password"})
 
     res = RedirectResponse(url=f"/{user.role}/dashboard", status_code=302)
-    res.set_cookie("user_id", str(user.id))
+    res.set_cookie("user_id",   str(user.id))
     res.set_cookie("user_role", user.role)
     res.set_cookie("user_name", urllib.parse.quote(str(user.name)))
     return res
-
 
 @app.get("/logout")
 def logout():
@@ -104,122 +101,161 @@ def logout():
 
 
 # =========================
-# ADMIN ROUTES
+# ADMIN — DASHBOARD
 # =========================
 @app.get("/admin/dashboard", response_class=HTMLResponse)
-def admin_dashboard(request: Request):
+def admin_dashboard(request: Request, db: Session = Depends(get_db)):
     user = get_user_from_cookies(request)
-    return render("dashboard.html", request, user)
+
+    teacher_count = db.query(models.User).filter(models.User.role == "teacher").count()
+    student_count = db.query(models.User).filter(models.User.role == "student").count()
+    assign_count  = db.query(models.Assignment).count() if hasattr(models, "Assignment") else 0
+    course_count  = db.query(models.Course).count()     if hasattr(models, "Course")     else 0
+    subject_count = db.query(models.Subject).count()    if hasattr(models, "Subject")    else 0
+    section_count = db.query(models.Section).count()    if hasattr(models, "Section")    else 0
+
+    return render("dashboard.html", request, {
+        **user,
+        "teacher_count": teacher_count,
+        "student_count": student_count,
+        "course_count":  course_count,
+        "subject_count": subject_count,
+        "section_count": section_count,
+        "assign_count":  assign_count,
+    })
 
 
-@app.get("/admin/programmes", response_class=HTMLResponse)
-def admin_programmes(request: Request, db: Session = Depends(get_db)):
+# =========================
+# ADMIN — ACADEMIC
+# =========================
+@app.get("/admin/academic-courses", response_class=HTMLResponse)   # ✅ FIXED URL
+def admin_courses(request: Request, db: Session = Depends(get_db)):
     user = get_user_from_cookies(request)
-    courses = db.query(models.Course).all() if hasattr(models, 'Course') else []
+    courses = db.query(models.Course).all() if hasattr(models, "Course") else []
     return render("course.html", request, {**user, "courses": courses})
 
-
-@app.post("/admin/programmes/add")
-def add_programme(
-    request: Request,
-    name: str = Form(...),
-    db: Session = Depends(get_db)
-):
-    if hasattr(models, 'Course'):
+@app.post("/admin/academic-courses/add")
+def add_course(name: str = Form(...), db: Session = Depends(get_db)):
+    if hasattr(models, "Course"):
         db.add(models.Course(name=name))
         db.commit()
-    return RedirectResponse("/admin/programmes", status_code=302)
+    return RedirectResponse("/admin/academic-courses", status_code=302)
 
-
-@app.post("/admin/programmes/delete/{id}")
-def delete_programme(id: int, db: Session = Depends(get_db)):
-    if hasattr(models, 'Course'):
-        course = db.query(models.Course).filter(models.Course.id == id).first()
-        if course:
-            db.delete(course)
+@app.post("/admin/academic-courses/delete/{id}")
+def delete_course(id: int, db: Session = Depends(get_db)):
+    if hasattr(models, "Course"):
+        c = db.query(models.Course).filter(models.Course.id == id).first()
+        if c:
+            db.delete(c)
             db.commit()
-    return RedirectResponse("/admin/programmes", status_code=302)
+    return RedirectResponse("/admin/academic-courses", status_code=302)
 
 
+@app.get("/admin/structure", response_class=HTMLResponse)
+def admin_structure(request: Request, db: Session = Depends(get_db)):
+    user = get_user_from_cookies(request)
+    courses  = db.query(models.Course).all()  if hasattr(models, "Course")  else []
+    sections = db.query(models.Section).all() if hasattr(models, "Section") else []
+    return render("course.html", request, {**user, "courses": courses, "sections": sections})
+
+
+@app.get("/admin/subjects", response_class=HTMLResponse)
+def admin_subjects(request: Request, db: Session = Depends(get_db)):
+    user = get_user_from_cookies(request)
+    subjects = db.query(models.Subject).all() if hasattr(models, "Subject") else []
+    return render("assigments.html", request, {**user, "subjects": subjects})
+
+@app.post("/admin/subjects/add")
+def add_subject(name: str = Form(...), db: Session = Depends(get_db)):
+    if hasattr(models, "Subject"):
+        db.add(models.Subject(name=name))
+        db.commit()
+    return RedirectResponse("/admin/subjects", status_code=302)
+
+@app.post("/admin/subjects/delete/{id}")
+def delete_subject(id: int, db: Session = Depends(get_db)):
+    if hasattr(models, "Subject"):
+        s = db.query(models.Subject).filter(models.Subject.id == id).first()
+        if s:
+            db.delete(s)
+            db.commit()
+    return RedirectResponse("/admin/subjects", status_code=302)
+
+
+@app.get("/admin/assignments", response_class=HTMLResponse)        # ✅ FIXED URL
+def admin_assignments(request: Request, db: Session = Depends(get_db)):
+    user = get_user_from_cookies(request)
+    teachers    = db.query(models.User).filter(models.User.role == "teacher").all()
+    assignments = db.query(models.Assignment).all() if hasattr(models, "Assignment") else []
+    return render("assigment_sub.html", request, {**user, "teachers": teachers, "assignments": assignments})
+
+@app.post("/admin/assignments/add")
+def add_assignment(
+    teacher_id: int = Form(...),
+    subject: str    = Form(...),
+    db: Session     = Depends(get_db)
+):
+    if hasattr(models, "Assignment"):
+        db.add(models.Assignment(teacher_id=teacher_id, subject=subject))
+        db.commit()
+    return RedirectResponse("/admin/assignments", status_code=302)
+
+
+# =========================
+# ADMIN — USERS
+# =========================
 @app.get("/admin/teachers", response_class=HTMLResponse)
 def admin_teachers(request: Request, db: Session = Depends(get_db)):
-    user = get_user_from_cookies(request)
+    user     = get_user_from_cookies(request)
     teachers = db.query(models.User).filter(models.User.role == "teacher").all()
     return render("teachers.html", request, {**user, "teachers": teachers})
 
-
 @app.post("/admin/teachers/add")
 def add_teacher(
-    name: str = Form(...),
-    email: str = Form(...),
+    name: str     = Form(...),
+    email: str    = Form(...),
     password: str = Form(...),
-    db: Session = Depends(get_db)
+    db: Session   = Depends(get_db)
 ):
-    existing = db.query(models.User).filter(models.User.email == email).first()
-    if not existing:
+    if not db.query(models.User).filter(models.User.email == email).first():
         db.add(models.User(name=name, email=email, password=password, role="teacher"))
         db.commit()
     return RedirectResponse("/admin/teachers", status_code=302)
 
-
 @app.post("/admin/teachers/delete/{id}")
 def delete_teacher(id: int, db: Session = Depends(get_db)):
-    teacher = db.query(models.User).filter(models.User.id == id).first()
-    if teacher:
-        db.delete(teacher)
+    t = db.query(models.User).filter(models.User.id == id).first()
+    if t:
+        db.delete(t)
         db.commit()
     return RedirectResponse("/admin/teachers", status_code=302)
 
 
 @app.get("/admin/students", response_class=HTMLResponse)
 def admin_students(request: Request, db: Session = Depends(get_db)):
-    user = get_user_from_cookies(request)
+    user     = get_user_from_cookies(request)
     students = db.query(models.User).filter(models.User.role == "student").all()
     return render("student.html", request, {**user, "students": students})
 
-
 @app.post("/admin/students/add")
 def add_student(
-    name: str = Form(...),
-    email: str = Form(...),
+    name: str     = Form(...),
+    email: str    = Form(...),
     password: str = Form(...),
-    db: Session = Depends(get_db)
+    db: Session   = Depends(get_db)
 ):
-    existing = db.query(models.User).filter(models.User.email == email).first()
-    if not existing:
+    if not db.query(models.User).filter(models.User.email == email).first():
         db.add(models.User(name=name, email=email, password=password, role="student"))
         db.commit()
     return RedirectResponse("/admin/students", status_code=302)
 
-
 @app.post("/admin/students/delete/{id}")
 def delete_student(id: int, db: Session = Depends(get_db)):
-    student = db.query(models.User).filter(models.User.id == id).first()
-    if student:
-        db.delete(student)
+    s = db.query(models.User).filter(models.User.id == id).first()
+    if s:
+        db.delete(s)
         db.commit()
     return RedirectResponse("/admin/students", status_code=302)
-
-
-@app.get("/admin/subjects", response_class=HTMLResponse)
-def admin_subjects(request: Request, db: Session = Depends(get_db)):
-    user = get_user_from_cookies(request)
-    assignments = db.query(models.Assignment).all()
-    return render("assigments.html", request, {**user, "assignments": assignments})
-
-
-@app.get("/admin/teacher-assign", response_class=HTMLResponse)
-def admin_teacher_assign(request: Request, db: Session = Depends(get_db)):
-    user = get_user_from_cookies(request)
-    teachers = db.query(models.User).filter(models.User.role == "teacher").all()
-    assignments = db.query(models.Assignment).all()
-    return render("assigment_sub.html", request, {**user, "teachers": teachers, "assignments": assignments})
-
-
-@app.get("/admin/structure", response_class=HTMLResponse)
-def admin_structure(request: Request):
-    user = get_user_from_cookies(request)
-    return render("course.html", request, user)
 
 
 # =========================
@@ -230,25 +266,22 @@ def teacher_dashboard(request: Request):
     user = get_user_from_cookies(request)
     return render("dashboard_t.html", request, user)
 
-
 @app.get("/teacher/attendance", response_class=HTMLResponse)
 def teacher_attendance(request: Request, db: Session = Depends(get_db)):
-    user = get_user_from_cookies(request)
+    user     = get_user_from_cookies(request)
     students = db.query(models.User).filter(models.User.role == "student").all()
     return render("teacher_attendence.html", request, {**user, "students": students})
 
-
 @app.get("/teacher/notes", response_class=HTMLResponse)
 def teacher_notes(request: Request, db: Session = Depends(get_db)):
-    user = get_user_from_cookies(request)
-    notes = db.query(models.Note).all() if hasattr(models, 'Note') else []
+    user  = get_user_from_cookies(request)
+    notes = db.query(models.Note).all() if hasattr(models, "Note") else []
     return render("notes.html", request, {**user, "notes": notes})
-
 
 @app.get("/teacher/assignments", response_class=HTMLResponse)
 def teacher_assignments(request: Request, db: Session = Depends(get_db)):
-    user = get_user_from_cookies(request)
-    assignments = db.query(models.Assignment).all()
+    user        = get_user_from_cookies(request)
+    assignments = db.query(models.Assignment).all() if hasattr(models, "Assignment") else []
     return render("assigments.html", request, {**user, "assignments": assignments})
 
 
@@ -260,52 +293,43 @@ def student_dashboard(request: Request):
     user = get_user_from_cookies(request)
     return render("student_dashboard.html", request, user)
 
-
 @app.get("/student/assignments", response_class=HTMLResponse)
 def student_assignments(request: Request, db: Session = Depends(get_db)):
-    user = get_user_from_cookies(request)
-    assignments = db.query(models.Assignment).all()
-    submissions = db.query(models.Submission).all()
-    return render("assigments.html", request, {
-        **user,
-        "assignments": assignments,
-        "submissions": submissions
-    })
-
+    user        = get_user_from_cookies(request)
+    assignments = db.query(models.Assignment).all() if hasattr(models, "Assignment") else []
+    submissions = db.query(models.Submission).all() if hasattr(models, "Submission") else []
+    return render("assigments.html", request, {**user, "assignments": assignments, "submissions": submissions})
 
 @app.post("/student/assignments/submit")
 def submit_assignment(
     assignment_id: int = Form(...),
-    answer: str = Form(...),
-    db: Session = Depends(get_db)
+    answer: str        = Form(...),
+    db: Session        = Depends(get_db)
 ):
-    sub = models.Submission(
-        assignment_id=assignment_id,
-        answer=answer,
-        submitted_at=str(datetime.now())
-    )
-    db.add(sub)
-    db.commit()
+    if hasattr(models, "Submission"):
+        db.add(models.Submission(
+            assignment_id=assignment_id,
+            answer=answer,
+            submitted_at=str(datetime.now())
+        ))
+        db.commit()
     return RedirectResponse("/student/assignments", status_code=302)
 
-
 @app.get("/student/attendance", response_class=HTMLResponse)
-def student_attendance(request: Request, db: Session = Depends(get_db)):
+def student_attendance(request: Request):
     user = get_user_from_cookies(request)
     return render("stu_attendence.html", request, user)
 
-
 @app.get("/student/courses", response_class=HTMLResponse)
 def student_courses(request: Request, db: Session = Depends(get_db)):
-    user = get_user_from_cookies(request)
-    courses = db.query(models.Course).all() if hasattr(models, 'Course') else []
+    user    = get_user_from_cookies(request)
+    courses = db.query(models.Course).all() if hasattr(models, "Course") else []
     return render("stu_course.html", request, {**user, "courses": courses})
-
 
 @app.get("/student/notes", response_class=HTMLResponse)
 def student_notes(request: Request, db: Session = Depends(get_db)):
-    user = get_user_from_cookies(request)
-    notes = db.query(models.Note).all() if hasattr(models, 'Note') else []
+    user  = get_user_from_cookies(request)
+    notes = db.query(models.Note).all() if hasattr(models, "Note") else []
     return render("stu_note.html", request, {**user, "notes": notes})
 
 
