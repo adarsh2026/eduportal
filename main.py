@@ -42,13 +42,15 @@ def startup():
 
 
 # =========================
-# HELPER
+# HELPER (FIXED ✅)
 # =========================
-def render(template, request, data={}):
-    return templates.TemplateResponse(template, {
-        "request": request,
-        **data
-    })
+def render(template, request, data=None):
+    context = data or {}
+    return templates.TemplateResponse(
+        request=request,
+        name=template,
+        context=context
+    )
 
 
 # =========================
@@ -119,7 +121,7 @@ def student_dashboard(request: Request):
 
 
 # =========================
-# STUDENT ASSIGNMENTS (FIXED)
+# STUDENT ASSIGNMENTS
 # =========================
 @app.get("/student/assignments", response_class=HTMLResponse)
 def student_assignments(request: Request, db: Session = Depends(get_db)):
@@ -153,7 +155,7 @@ def submit_assignment(
 
 
 # =========================
-# FIX: REMOVE 405 ERROR
+# CATCH ALL
 # =========================
 @app.get("/{full_path:path}")
 def catch_all():
