@@ -5,19 +5,18 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from datetime import datetime
-import os
+
 import models
 from database import get_db, engine, SessionLocal
 
 app = FastAPI()
 
 # =========================
-# STATIC (SAFE FOR RENDER)
+# STATIC + TEMPLATES
 # =========================
-if os.path.exists("static"):
-    app.mount("/static", StaticFiles(directory="static"), name="static")
-
+app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
+
 
 # =========================
 # STARTUP (DB + ADMIN)
@@ -28,10 +27,10 @@ def startup():
 
     db = SessionLocal()
 
-    # auto admin
+    # Admin auto create
     if not db.query(models.User).filter(models.User.email == "admin@edu.com").first():
         db.add(models.User(
-            name="Admin",
+            name="Super Admin",
             email="admin@edu.com",
             password="admin123",
             role="admin"
@@ -41,13 +40,16 @@ def startup():
 
     db.close()
 
+
 # =========================
 # HELPER
 # =========================
-def render(template, request, data=None):
-    if data is None:
-        data = {}
-    return templates.TemplateResponse(template, {"request": request, **data})
+def render(template, request, data={}):
+    return templates.TemplateResponse(template, {
+        "request": request,
+        **data
+    })
+
 
 # =========================
 # AUTH
@@ -56,12 +58,19 @@ def render(template, request, data=None):
 def home(request: Request):
     return render("login.html", request)
 
+
 @app.get("/login", response_class=HTMLResponse)
 def login_page(request: Request):
     return render("login.html", request)
 
+
 @app.post("/login")
-def login(request: Request, email: str = Form(...), password: str = Form(...), db: Session = Depends(get_db)):
+def login(
+    request: Request,
+    email: str = Form(...),
+    password: str = Form(...),
+    db: Session = Depends(get_db)
+):
 
     email = email.strip().lower()
     password = password.strip()
@@ -69,9 +78,6 @@ def login(request: Request, email: str = Form(...), password: str = Form(...), d
     user = db.query(models.User).filter(
         func.lower(models.User.email) == email
     ).first()
-
-    print("Entered:", email, password)
-    print("User found:", user.email if user else "No user")
 
     if not user or (user.password or "").strip() != password:
         return render("login.html", request, {"error": "Invalid email or password"})
@@ -84,13 +90,15 @@ def login(request: Request, email: str = Form(...), password: str = Form(...), d
 
     return res
 
+
 @app.get("/logout")
 def logout():
-    res = RedirectResponse("/", status_code=302)
+    res = RedirectResponse("/")
     res.delete_cookie("user_id")
     res.delete_cookie("user_role")
     res.delete_cookie("user_name")
     return res
+
 
 # =========================
 # DASHBOARDS
@@ -99,58 +107,53 @@ def logout():
 def admin_dashboard(request: Request):
     return render("dashboard.html", request)
 
+
 @app.get("/teacher/dashboard", response_class=HTMLResponse)
 def teacher_dashboard(request: Request):
     return render("dashboard_t.html", request)
+
 
 @app.get("/student/dashboard", response_class=HTMLResponse)
 def student_dashboard(request: Request):
     return render("student_dashboard.html", request)
 
+
 # =========================
-# STUDENT ASSIGNMENTS (FIXED BUG)
+# STUDENT ASSIGNMENTS (FIXED)
 # =========================
 @app.get("/student/assignments", response_class=HTMLResponse)
 def student_assignments(request: Request, db: Session = Depends(get_db)):
 
     assignments = db.query(models.Assignment).all()
-    submissions_list = db.query(models.Submission).all()
-
-    submissions = {}
-
-    for s in submissions_list:
-        key = s.assignment_id
-
-        # 🔥 FINAL FIX
-        if isinstance(key, tuple):
-            key = key[0]
-        elif isinstance(key, dict):
-            key = list(key.values())[0]
-
-        try:
-            key = int(key)
-            submissions[key] = s
-        except:
-            continue
+    submissions = db.query(models.Submission).all()
 
     return render("assignments.html", request, {
         "assignments": assignments,
         "submissions": submissions
     })
 
+
 @app.post("/student/assignments/submit")
-def submit_assignment(assignment_id: int = Form(...), answer: str = Form(...), db: Session = Depends(get_db)):
+def submit_assignment(
+    assignment_id: int = Form(...),
+    answer: str = Form(...),
+    db: Session = Depends(get_db)
+):
+
     sub = models.Submission(
         assignment_id=assignment_id,
         answer=answer,
         submitted_at=str(datetime.now())
     )
+
     db.add(sub)
     db.commit()
+
     return RedirectResponse("/student/assignments", status_code=302)
 
+
 # =========================
-# FINAL FIX (NO 405 ERROR)
+# FIX: REMOVE 405 ERROR
 # =========================
 @app.get("/{full_path:path}")
 def catch_all():
