@@ -5,13 +5,18 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from datetime import datetime
+import os
 import models
 from database import get_db, engine, SessionLocal
 
 app = FastAPI()
 
-# Static & templates
-app.mount("/static", StaticFiles(directory="static"), name="static")
+# =========================
+# SAFE STATIC (important for Render)
+# =========================
+if os.path.exists("static"):
+    app.mount("/static", StaticFiles(directory="static"), name="static")
+
 templates = Jinja2Templates(directory="templates")
 
 # =========================
@@ -39,11 +44,10 @@ def startup():
 # =========================
 # HELPER
 # =========================
-def render(template, request, data={}):
+def render(template, request, data=None):
+    if data is None:
+        data = {}
     return templates.TemplateResponse(template, {"request": request, **data})
-
-def get_user(request: Request):
-    return request.cookies.get("user_role")
 
 # =========================
 # AUTH
@@ -66,6 +70,10 @@ def login(request: Request, email: str = Form(...), password: str = Form(...), d
         func.lower(models.User.email) == email
     ).first()
 
+    print("Entered:", email, password)
+    print("User found:", user.email if user else "No user")
+
+    # SAFE password compare
     if not user or (user.password or "").strip() != password:
         return render("login.html", request, {"error": "Invalid email or password"})
 
@@ -79,7 +87,7 @@ def login(request: Request, email: str = Form(...), password: str = Form(...), d
 
 @app.get("/logout")
 def logout():
-    res = RedirectResponse("/")
+    res = RedirectResponse("/", status_code=302)
     res.delete_cookie("user_id")
     res.delete_cookie("user_role")
     res.delete_cookie("user_name")
@@ -132,7 +140,7 @@ def submit_assignment(assignment_id: int = Form(...), answer: str = Form(...), d
     return RedirectResponse("/student/assignments", status_code=302)
 
 # =========================
-# FIX: REMOVE 405 ERROR
+# FINAL FIX (NO 405 EVER)
 # =========================
 @app.get("/{full_path:path}")
 def catch_all():
