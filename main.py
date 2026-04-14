@@ -12,15 +12,12 @@ from database import get_db, engine, SessionLocal
 
 app = FastAPI()
 
-# =========================
-# STATIC + TEMPLATES
-# =========================
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
 
 # =========================
-# STARTUP (DB + ADMIN)
+# STARTUP
 # =========================
 @app.on_event("startup")
 def startup():
@@ -39,7 +36,7 @@ def startup():
 
 
 # =========================
-# HELPER
+# HELPERS
 # =========================
 def render(template, request, data=None):
     context = data or {}
@@ -75,7 +72,7 @@ def login(
     password: str = Form(...),
     db: Session = Depends(get_db)
 ):
-    email = email.strip().lower()
+    email    = email.strip().lower()
     password = password.strip()
 
     user = db.query(models.User).filter(
@@ -106,14 +103,12 @@ def logout():
 @app.get("/admin/dashboard", response_class=HTMLResponse)
 def admin_dashboard(request: Request, db: Session = Depends(get_db)):
     user = get_user_from_cookies(request)
-
     teacher_count = db.query(models.User).filter(models.User.role == "teacher").count()
     student_count = db.query(models.User).filter(models.User.role == "student").count()
-    assign_count  = db.query(models.Assignment).count() if hasattr(models, "Assignment") else 0
     course_count  = db.query(models.Course).count()     if hasattr(models, "Course")     else 0
     subject_count = db.query(models.Subject).count()    if hasattr(models, "Subject")    else 0
     section_count = db.query(models.Section).count()    if hasattr(models, "Section")    else 0
-
+    assign_count  = db.query(models.Assignment).count() if hasattr(models, "Assignment") else 0
     return render("dashboard.html", request, {
         **user,
         "teacher_count": teacher_count,
@@ -126,11 +121,11 @@ def admin_dashboard(request: Request, db: Session = Depends(get_db)):
 
 
 # =========================
-# ADMIN — ACADEMIC
+# ADMIN — PROGRAMMES  →  course.html
 # =========================
-@app.get("/admin/academic-courses", response_class=HTMLResponse)   # ✅ FIXED URL
+@app.get("/admin/academic-courses", response_class=HTMLResponse)
 def admin_courses(request: Request, db: Session = Depends(get_db)):
-    user = get_user_from_cookies(request)
+    user    = get_user_from_cookies(request)
     courses = db.query(models.Course).all() if hasattr(models, "Course") else []
     return render("course.html", request, {**user, "courses": courses})
 
@@ -151,40 +146,32 @@ def delete_course(id: int, db: Session = Depends(get_db)):
     return RedirectResponse("/admin/academic-courses", status_code=302)
 
 
+# =========================
+# ADMIN — STRUCTURE  →  course.html
+# =========================
 @app.get("/admin/structure", response_class=HTMLResponse)
 def admin_structure(request: Request, db: Session = Depends(get_db)):
-    user = get_user_from_cookies(request)
-    courses  = db.query(models.Course).all()  if hasattr(models, "Course")  else []
-    sections = db.query(models.Section).all() if hasattr(models, "Section") else []
-    return render("course.html", request, {**user, "courses": courses, "sections": sections})
+    user    = get_user_from_cookies(request)
+    courses = db.query(models.Course).all() if hasattr(models, "Course") else []
+    return render("course.html", request, {**user, "courses": courses})
 
 
+# =========================
+# ADMIN — SUBJECTS  →  assigments.html
+# =========================
 @app.get("/admin/subjects", response_class=HTMLResponse)
 def admin_subjects(request: Request, db: Session = Depends(get_db)):
-    user = get_user_from_cookies(request)
-    subjects = db.query(models.Subject).all() if hasattr(models, "Subject") else []
-    return render("assigments.html", request, {**user, "subjects": subjects})
-
-@app.post("/admin/subjects/add")
-def add_subject(name: str = Form(...), db: Session = Depends(get_db)):
-    if hasattr(models, "Subject"):
-        db.add(models.Subject(name=name))
-        db.commit()
-    return RedirectResponse("/admin/subjects", status_code=302)
-
-@app.post("/admin/subjects/delete/{id}")
-def delete_subject(id: int, db: Session = Depends(get_db)):
-    if hasattr(models, "Subject"):
-        s = db.query(models.Subject).filter(models.Subject.id == id).first()
-        if s:
-            db.delete(s)
-            db.commit()
-    return RedirectResponse("/admin/subjects", status_code=302)
+    user        = get_user_from_cookies(request)
+    assignments = db.query(models.Assignment).all() if hasattr(models, "Assignment") else []
+    return render("assigments.html", request, {**user, "assignments": assignments})
 
 
-@app.get("/admin/assignments", response_class=HTMLResponse)        # ✅ FIXED URL
+# =========================
+# ADMIN — TEACHER ASSIGN  →  assigment_sub.html
+# =========================
+@app.get("/admin/assignments", response_class=HTMLResponse)
 def admin_assignments(request: Request, db: Session = Depends(get_db)):
-    user = get_user_from_cookies(request)
+    user        = get_user_from_cookies(request)
     teachers    = db.query(models.User).filter(models.User.role == "teacher").all()
     assignments = db.query(models.Assignment).all() if hasattr(models, "Assignment") else []
     return render("assigment_sub.html", request, {**user, "teachers": teachers, "assignments": assignments})
@@ -202,7 +189,7 @@ def add_assignment(
 
 
 # =========================
-# ADMIN — USERS
+# ADMIN — TEACHERS  →  teachers.html
 # =========================
 @app.get("/admin/teachers", response_class=HTMLResponse)
 def admin_teachers(request: Request, db: Session = Depends(get_db)):
@@ -231,6 +218,9 @@ def delete_teacher(id: int, db: Session = Depends(get_db)):
     return RedirectResponse("/admin/teachers", status_code=302)
 
 
+# =========================
+# ADMIN — STUDENTS  →  student.html
+# =========================
 @app.get("/admin/students", response_class=HTMLResponse)
 def admin_students(request: Request, db: Session = Depends(get_db)):
     user     = get_user_from_cookies(request)
