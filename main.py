@@ -12,7 +12,7 @@ from database import get_db, engine, SessionLocal
 app = FastAPI()
 
 # =========================
-# SAFE STATIC (important for Render)
+# STATIC (SAFE FOR RENDER)
 # =========================
 if os.path.exists("static"):
     app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -28,7 +28,7 @@ def startup():
 
     db = SessionLocal()
 
-    # Auto admin create
+    # auto admin
     if not db.query(models.User).filter(models.User.email == "admin@edu.com").first():
         db.add(models.User(
             name="Admin",
@@ -73,7 +73,6 @@ def login(request: Request, email: str = Form(...), password: str = Form(...), d
     print("Entered:", email, password)
     print("User found:", user.email if user else "No user")
 
-    # SAFE password compare
     if not user or (user.password or "").strip() != password:
         return render("login.html", request, {"error": "Invalid email or password"})
 
@@ -109,19 +108,30 @@ def student_dashboard(request: Request):
     return render("student_dashboard.html", request)
 
 # =========================
-# STUDENT ASSIGNMENTS
+# STUDENT ASSIGNMENTS (FIXED BUG)
 # =========================
 @app.get("/student/assignments", response_class=HTMLResponse)
 def student_assignments(request: Request, db: Session = Depends(get_db)):
+
     assignments = db.query(models.Assignment).all()
     submissions_list = db.query(models.Submission).all()
 
     submissions = {}
+
     for s in submissions_list:
+        key = s.assignment_id
+
+        # 🔥 FINAL FIX
+        if isinstance(key, tuple):
+            key = key[0]
+        elif isinstance(key, dict):
+            key = list(key.values())[0]
+
         try:
-            submissions[int(s.assignment_id)] = s
+            key = int(key)
+            submissions[key] = s
         except:
-            pass
+            continue
 
     return render("assignments.html", request, {
         "assignments": assignments,
@@ -140,7 +150,7 @@ def submit_assignment(assignment_id: int = Form(...), answer: str = Form(...), d
     return RedirectResponse("/student/assignments", status_code=302)
 
 # =========================
-# FINAL FIX (NO 405 EVER)
+# FINAL FIX (NO 405 ERROR)
 # =========================
 @app.get("/{full_path:path}")
 def catch_all():
