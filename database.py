@@ -1,14 +1,36 @@
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+import os
 
-# ✅ PostgreSQL connection — apna credentials yahan daalo
-DATABASE_URL = "postgresql+psycopg2://postgres:Admin123@localhost:5432/eduportal"
+# ✅ Render / Production ke liye DATABASE_URL (env se)
+DATABASE_URL = os.getenv("DATABASE_URL")
 
-engine = create_engine(DATABASE_URL)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+# 🔁 Fix for Render (postgres:// → postgresql://)
+if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://")
+
+# ❌ Agar DATABASE_URL missing hai to clear error do
+if not DATABASE_URL:
+    raise Exception("DATABASE_URL is not set")
+
+# ✅ Engine create (safe for production)
+engine = create_engine(
+    DATABASE_URL,
+    pool_pre_ping=True  # connection drop issue avoid karega
+)
+
+# ✅ Session
+SessionLocal = sessionmaker(
+    autocommit=False,
+    autoflush=False,
+    bind=engine
+)
+
+# ✅ Base
 Base = declarative_base()
 
+# ✅ Dependency for FastAPI
 def get_db():
     db = SessionLocal()
     try:
