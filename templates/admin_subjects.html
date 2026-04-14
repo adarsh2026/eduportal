@@ -1,0 +1,163 @@
+\<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin – Subjects | EduPortal</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet"/>
+  <link href="/static/css/style.css" rel="stylesheet"/>
+  <link href="/static/css/admin.css" rel="stylesheet"/>
+</head>
+<body>
+<aside class="sidebar">
+  <div class="sidebar-brand"><div class="brand-icon">🎓</div><span class="brand-name">EduPortal</span></div>
+  <div class="sidebar-role">Admin Panel</div>
+  <nav>
+    <a href="/admin/dashboard"        class="nav-link"><i class="bi bi-grid-1x2-fill"></i> Dashboard</a>
+    <div class="nav-section-label">Academic</div>
+    <a href="/admin/academic-courses" class="nav-link"><i class="bi bi-mortarboard-fill"></i> Programmes</a>
+    <a href="/admin/structure"        class="nav-link"><i class="bi bi-diagram-3-fill"></i> Structure</a>
+    <a href="/admin/subjects"         class="nav-link active"><i class="bi bi-journal-bookmark-fill"></i> Subjects</a>
+    <a href="/admin/assignments"      class="nav-link"><i class="bi bi-person-badge-fill"></i> Teacher Assign</a>
+    <div class="nav-section-label">Users</div>
+    <a href="/admin/teachers"         class="nav-link"><i class="bi bi-person-video3"></i> Teachers</a>
+    <a href="/admin/students"         class="nav-link"><i class="bi bi-people-fill"></i> Students</a>
+  </nav>
+  <div class="sidebar-user">
+    <div class="user-avatar">{{ user_name[0]|upper }}</div>
+    <div class="user-info"><div class="user-name">{{ user_name }}</div><div class="user-role">Administrator</div></div>
+    <a href="/logout" class="logout-btn"><i class="bi bi-box-arrow-right"></i></a>
+  </div>
+</aside>
+
+<main class="main-content">
+  <div class="d-flex align-items-center justify-content-between mb-4">
+    <div>
+      <div class="page-title">Subjects</div>
+      <div class="page-subtitle">Add subjects to each semester of each programme</div>
+    </div>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addModal">
+      <i class="bi bi-plus-lg me-1"></i> Add Subject
+    </button>
+  </div>
+
+  <div class="row g-4">
+    <!-- Left: filter -->
+    <div class="col-md-3">
+      <div class="form-card">
+        <h6 class="card-section-title mb-3">Filter Subjects</h6>
+        <div class="mb-3">
+          <label class="form-label">Programme</label>
+          <select id="filterCourse" class="form-select" onchange="adminFilterSubjects()">
+            <option value="">— All —</option>
+            {% for c in courses %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Year</label>
+          <select id="filterYear" class="form-select" onchange="adminFilterSubjects()">
+            <option value="">— All —</option>
+            {% for y in years %}<option value="{{ y.id }}" data-course="{{ y.course_id }}">Year {{ y.year_number }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Semester</label>
+          <select id="filterSem" class="form-select" onchange="adminFilterSubjects()">
+            <option value="">— All —</option>
+            {% for s in semesters %}<option value="{{ s.id }}" data-year="{{ s.year_id }}">Sem {{ s.semester_number }}</option>{% endfor %}
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: table -->
+    <div class="col-md-9">
+      <div class="table-card">
+        <div class="table-header">
+          <span class="table-title">All Subjects ({{ subjects|length }})</span>
+          <input id="tableSearch" type="text" class="form-control" placeholder="Search..." style="max-width:200px;"/>
+        </div>
+        {% if subjects %}
+        <div class="table-responsive">
+          <table class="table table-borderless" id="subjectsTable">
+            <thead><tr><th>#</th><th>Subject</th><th>Code</th><th>Programme</th><th>Year</th><th>Semester</th><th>Action</th></tr></thead>
+            <tbody>
+              {% for sub in subjects %}
+              {% set sem = semester_map[sub.semester_id] if sub.semester_id in semester_map else None %}
+              {% set yr  = year_map[sem.year_id] if sem and sem.year_id in year_map else None %}
+              {% set co  = course_map[yr.course_id] if yr and yr.course_id in course_map else None %}
+              <tr data-course="{{ yr.course_id if yr else '' }}" data-year="{{ sem.year_id if sem else '' }}" data-sem="{{ sub.semester_id }}">
+                <td class="text-muted-col">{{ loop.index }}</td>
+                <td><strong>{{ sub.name }}</strong></td>
+                <td><span class="badge-course">{{ sub.code or "—" }}</span></td>
+                <td>{% if co %}<span class="badge-course">{{ co.code }}</span>{% else %}—{% endif %}</td>
+                <td>{% if yr %}<span class="admin-year-badge">Y{{ yr.year_number }}</span>{% else %}—{% endif %}</td>
+                <td>{% if sem %}<span class="admin-sem-badge">S{{ sem.semester_number }}</span>{% else %}—{% endif %}</td>
+                <td>
+                  <form method="POST" action="/admin/subjects/delete/{{ sub.id }}" style="display:inline;" onsubmit="return confirmDelete('{{ sub.name }}')">
+                    <button class="btn btn-danger btn-sm"><i class="bi bi-trash"></i></button>
+                  </form>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="empty-state"><i class="bi bi-journal-bookmark"></i><p>No subjects yet. Add your first subject!</p></div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- Add Subject Modal -->
+<div class="modal fade" id="addModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-journal-bookmark-fill me-2" style="color:var(--accent);"></i>Add Subject</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="POST" action="/admin/subjects/add">
+        <div class="modal-body">
+          <!-- Cascade: Programme → Year → Semester -->
+          <div class="mb-3">
+            <label class="form-label">Programme</label>
+            <select id="modalCourse" class="form-select" onchange="adminCascadeYear('modalCourse','modalYear')" required>
+              <option value="">— Select Programme —</option>
+              {% for c in courses %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Year</label>
+            <select id="modalYear" class="form-select" onchange="adminCascadeSem('modalYear','modalSem')" required>
+              <option value="">— Select Year —</option>
+              {% for y in years %}<option value="{{ y.id }}" data-course="{{ y.course_id }}">Year {{ y.year_number }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Semester</label>
+            <select id="modalSem" name="semester_id" class="form-select" required>
+              <option value="">— Select Semester —</option>
+              {% for s in semesters %}<option value="{{ s.id }}" data-year="{{ s.year_id }}">Semester {{ s.semester_number }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="mb-3"><label class="form-label">Subject Name <span style="color:#ef4444">*</span></label><input type="text" name="name" class="form-control" placeholder="e.g. Database Management System" required/></div>
+          <div class="mb-3"><label class="form-label">Subject Code</label><input type="text" name="code" class="form-control" placeholder="e.g. DBMS"/></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Add Subject</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="/static/js/app.js"></script>
+<script src="/static/js/admin.js"></script>
+</body>
+</html> 

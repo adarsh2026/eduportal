@@ -7,82 +7,120 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"/>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet"/>
   <link href="/static/css/style.css" rel="stylesheet"/>
+  <link href="/static/css/admin.css" rel="stylesheet"/>
 </head>
 <body>
 <aside class="sidebar">
   <div class="sidebar-brand"><div class="brand-icon">🎓</div><span class="brand-name">EduPortal</span></div>
   <div class="sidebar-role">Admin Panel</div>
   <nav>
-    <a href="/admin/dashboard" class="nav-link active"><i class="bi bi-grid-1x2-fill"></i> Dashboard</a>
-    <a href="/admin/teachers"  class="nav-link"><i class="bi bi-person-badge"></i> Teachers</a>
-    <a href="/admin/students"  class="nav-link"><i class="bi bi-people"></i> Students</a>
+    <a href="/admin/dashboard"        class="nav-link active"><i class="bi bi-grid-1x2-fill"></i> Dashboard</a>
+    <div class="nav-section-label">Academic</div>
+    <a href="/admin/academic-courses" class="nav-link"><i class="bi bi-mortarboard-fill"></i> Programmes</a>
+    <a href="/admin/structure"        class="nav-link"><i class="bi bi-diagram-3-fill"></i> Structure</a>
+    <a href="/admin/subjects"         class="nav-link"><i class="bi bi-journal-bookmark-fill"></i> Subjects</a>
+    <a href="/admin/assignments"      class="nav-link"><i class="bi bi-person-badge-fill"></i> Teacher Assign</a>
+    <div class="nav-section-label">Users</div>
+    <a href="/admin/teachers"         class="nav-link"><i class="bi bi-person-video3"></i> Teachers</a>
+    <a href="/admin/students"         class="nav-link"><i class="bi bi-people-fill"></i> Students</a>
   </nav>
   <div class="sidebar-user">
     <div class="user-avatar">{{ user_name[0]|upper }}</div>
     <div class="user-info">
       <div class="user-name">{{ user_name }}</div>
-      <div class="user-role">EduPortal</div>
+      <div class="user-role">Administrator</div>
     </div>
     <a href="/logout" class="logout-btn" title="Logout"><i class="bi bi-box-arrow-right"></i></a>
   </div>
-</aside>  
+</aside>
 
 <main class="main-content">
   <div class="page-title">Dashboard</div>
   <div class="page-subtitle">Overview of EduPortal activity</div>
 
+  <!-- Stat Cards -->
   <div class="row g-4 mb-4">
-    <div class="col-md-4">
+    <div class="col-md-4 col-lg-2">
       <div class="stat-card">
-        <div class="stat-icon" style="background:rgba(59,130,246,0.15);color:#3b82f6;"><i class="bi bi-person-badge-fill"></i></div>
+        <div class="stat-icon" style="background:rgba(59,130,246,0.15);color:#3b82f6;"><i class="bi bi-person-video3"></i></div>
         <div class="stat-value">{{ teacher_count }}</div>
-        <div class="stat-label">Total Teachers</div>
+        <div class="stat-label">Teachers</div>
       </div>
     </div>
-    <div class="col-md-4">
+    <div class="col-md-4 col-lg-2">
       <div class="stat-card">
         <div class="stat-icon" style="background:rgba(16,185,129,0.15);color:#10b981;"><i class="bi bi-people-fill"></i></div>
         <div class="stat-value">{{ student_count }}</div>
-        <div class="stat-label">Total Students</div>
+        <div class="stat-label">Students</div>
       </div>
     </div>
-    <div class="col-md-4">
+    <div class="col-md-4 col-lg-2">
       <div class="stat-card">
-        <div class="stat-icon" style="background:rgba(245,158,11,0.15);color:#f59e0b;"><i class="bi bi-book-fill"></i></div>
+        <div class="stat-icon" style="background:rgba(245,158,11,0.15);color:#f59e0b;"><i class="bi bi-mortarboard-fill"></i></div>
         <div class="stat-value">{{ course_count }}</div>
-        <div class="stat-label">Total Courses</div>
+        <div class="stat-label">Programmes</div>
+      </div>
+    </div>
+    <div class="col-md-4 col-lg-2">
+      <div class="stat-card">
+        <div class="stat-icon" style="background:rgba(129,140,248,0.15);color:#818cf8;"><i class="bi bi-journal-bookmark-fill"></i></div>
+        <div class="stat-value">{{ subject_count }}</div>
+        <div class="stat-label">Subjects</div>
+      </div>
+    </div>
+    <div class="col-md-4 col-lg-2">
+      <div class="stat-card">
+        <div class="stat-icon" style="background:rgba(239,68,68,0.15);color:#ef4444;"><i class="bi bi-collection-fill"></i></div>
+        <div class="stat-value">{{ section_count }}</div>
+        <div class="stat-label">Sections</div>
+      </div>
+    </div>
+    <div class="col-md-4 col-lg-2">
+      <div class="stat-card">
+        <div class="stat-icon" style="background:rgba(16,185,129,0.15);color:#10b981;"><i class="bi bi-person-badge-fill"></i></div>
+        <div class="stat-value">{{ assign_count }}</div>
+        <div class="stat-label">Assignments</div>
       </div>
     </div>
   </div>
 
+  <!-- Quick Actions -->
   <div class="row g-4">
     <div class="col-md-6">
       <div class="table-card p-4">
-        <h6 class="card-section-title">⚡ Quick Actions</h6>
+        <h6 class="card-section-title mb-3">🎓 Academic Management</h6>
         <div class="d-flex flex-column gap-3">
-          <a href="/admin/teachers" class="nav-link quick-action-link">
-            <i class="bi bi-person-plus-fill" style="color:#3b82f6;font-size:20px;"></i>
-            <div>
-              <div class="qa-title">Manage Teachers</div>
-              <div class="qa-sub">Add, view or remove teachers</div>
-            </div>
+          <a href="/admin/academic-courses" class="nav-link admin-quick-link">
+            <i class="bi bi-mortarboard-fill" style="color:#f59e0b;"></i>
+            <div><div class="qa-title">Programmes</div><div class="qa-sub">Manage BCA, BBA, MBA etc.</div></div>
           </a>
-          <a href="/admin/students" class="nav-link quick-action-link">
-            <i class="bi bi-person-check-fill" style="color:#10b981;font-size:20px;"></i>
-            <div>
-              <div class="qa-title">Manage Students</div>
-              <div class="qa-sub">Add, view or remove students</div>
-            </div>
+          <a href="/admin/structure" class="nav-link admin-quick-link">
+            <i class="bi bi-diagram-3-fill" style="color:#818cf8;"></i>
+            <div><div class="qa-title">Structure</div><div class="qa-sub">Years → Semesters → Sections</div></div>
+          </a>
+          <a href="/admin/subjects" class="nav-link admin-quick-link">
+            <i class="bi bi-journal-bookmark-fill" style="color:#3b82f6;"></i>
+            <div><div class="qa-title">Subjects</div><div class="qa-sub">Add subjects to semesters</div></div>
+          </a>
+          <a href="/admin/assignments" class="nav-link admin-quick-link">
+            <i class="bi bi-person-badge-fill" style="color:#10b981;"></i>
+            <div><div class="qa-title">Teacher Assignments</div><div class="qa-sub">Map teachers to subjects</div></div>
           </a>
         </div>
       </div>
     </div>
     <div class="col-md-6">
-      <div class="table-card p-4 h-100 d-flex flex-column align-items-center justify-content-center">
-        <div style="font-size:48px;margin-bottom:12px;">📊</div>
-        <div class="card-section-title">System Summary</div>
-        <div class="text-muted-sm text-center mt-1">
-          {{ teacher_count }} Teachers &nbsp;·&nbsp; {{ student_count }} Students &nbsp;·&nbsp; {{ course_count }} Courses
+      <div class="table-card p-4">
+        <h6 class="card-section-title mb-3">👥 User Management</h6>
+        <div class="d-flex flex-column gap-3">
+          <a href="/admin/teachers" class="nav-link admin-quick-link">
+            <i class="bi bi-person-plus-fill" style="color:#3b82f6;"></i>
+            <div><div class="qa-title">Manage Teachers</div><div class="qa-sub">Add, view or remove teachers</div></div>
+          </a>
+          <a href="/admin/students" class="nav-link admin-quick-link">
+            <i class="bi bi-person-check-fill" style="color:#10b981;"></i>
+            <div><div class="qa-title">Manage Students</div><div class="qa-sub">Add, view or remove students</div></div>
+          </a>
         </div>
       </div>
     </div>

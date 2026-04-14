@@ -1,0 +1,99 @@
+/* ═══════════════════════════════════════════════════
+   ADDITIONS — paste these at the END of admin.css
+   ═══════════════════════════════════════════════════ */
+
+/* Cascade step number badge (①②③④ style) */
+.cascade-step-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  margin-right: 4px;
+  flex-shrink: 0;
+}
+
+/* Admin info box used in modals */
+.admin-info-box {
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.03);
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* Section badge (orange) */
+.admin-sec-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  background: rgba(245,158,11,0.15);
+  color: #f59e0b;
+}
+
+/* Year badge (blue) */
+.admin-year-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  background: rgba(59,130,246,0.15);
+  color: #3b82f6;
+}
+
+/* Semester badge (purple) */
+.admin-sem-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  background: rgba(129,140,248,0.15);
+  color: #818cf8;
+}
+
+/* Programme badge */
+.admin-prog-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 700;
+  background: rgba(16,185,129,0.15);
+  color: #10b981;
+}
+
+/* Tab count pill */
+.tab-count {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(99,102,241,0.15);
+  color: #818cf8;
+  margin-left: 4px;
+}
+
+/* Modal scrollable body for large forms */
+.modal-body {
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+/* Form select loading state */
+select[disabled], select option:first-child {
+  color: var(--muted);
+}

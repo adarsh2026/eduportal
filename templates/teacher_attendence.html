@@ -14,7 +14,6 @@
   <div class="sidebar-role">Teacher Panel</div>
   <nav>
     <a href="/teacher/dashboard"   class="nav-link"><i class="bi bi-grid-1x2-fill"></i> Dashboard</a>
-    <a href="/teacher/courses"     class="nav-link"><i class="bi bi-book"></i> Courses</a>
     <a href="/teacher/notes"       class="nav-link"><i class="bi bi-file-earmark-text"></i> Notes</a>
     <a href="/teacher/assignments" class="nav-link"><i class="bi bi-clipboard-check"></i> Assignments</a>
     <a href="/teacher/attendance"  class="nav-link active"><i class="bi bi-calendar-check"></i> Attendance</a>
@@ -27,83 +26,189 @@
 </aside>
 
 <main class="main-content">
-  <div class="page-title">Mark Attendance</div>
-  <div class="page-subtitle">Record daily student attendance</div>
+  <div class="page-title"><i class="bi bi-calendar-check me-2" style="color:#10b981;"></i>Attendance</div>
+  <div class="page-subtitle">Mark attendance or view saved records</div>
 
-  <div class="row g-4">
-    <div class="col-md-4">
-      <div class="form-card">
-        <h6 class="card-section-title mb-3"><i class="bi bi-calendar-check me-2" style="color:#10b981;"></i>Mark Attendance</h6>
-        <form method="POST" action="/teacher/attendance/mark">
-          <div class="mb-3">
-            <label class="form-label">Course</label>
-            <select name="course_id" class="form-select" required>
-              <option value="">— Select Course —</option>
-              {% for c in courses %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
-            </select>
+  <ul class="nav nav-tabs mb-4" style="border-bottom:1px solid var(--border);">
+    <li class="nav-item">
+      <button class="nav-tab-btn active" data-bs-toggle="tab" data-bs-target="#markPane" type="button">
+        <i class="bi bi-pencil-square me-1"></i> Mark Attendance
+      </button>
+    </li>
+    <li class="nav-item">
+      <button class="nav-tab-btn" data-bs-toggle="tab" data-bs-target="#filterPane" type="button">
+        <i class="bi bi-eye me-1"></i> View Attendance
+      </button>
+    </li>
+  </ul>
+
+  <div class="tab-content">
+
+    <!-- TAB 1: MARK ATTENDANCE -->
+    <div class="tab-pane fade show active" id="markPane">
+      <div class="row g-4">
+        <div class="col-lg-4">
+          <div class="form-card">
+            <h6 class="card-section-title mb-3"><i class="bi bi-pencil-square me-2" style="color:#3b82f6;"></i>Select Class</h6>
+            <div class="mb-3">
+              <label class="form-label">Subject &amp; Section</label>
+              <select id="markAssignSelect" class="form-select">
+                <option value="">— Select Subject &amp; Section —</option>
+                {% for a in assignments %}
+                <option value="{{ a.subject_id }}:{{ a.section_id }}"
+                        data-subject="{{ a.subject_id }}"
+                        data-section="{{ a.section_id }}"
+                        data-label="{{ a.label }}">
+                  {{ a.label }}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Date</label>
+              <input type="date" id="markDateInput" class="form-control" value="{{ today }}" max="{{ today }}"/>
+            </div>
+            <button class="btn btn-primary w-100" onclick="teacherLoadStudents()">
+              <i class="bi bi-people-fill me-1"></i> Load Students
+            </button>
+            <div id="markError" style="display:none;margin-top:10px;padding:10px 14px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.25);border-radius:10px;font-size:13px;color:#ef4444;"></div>
           </div>
-          <div class="mb-3">
-            <label class="form-label">Student</label>
-            <select name="student_id" class="form-select" required>
-              <option value="">— Select Student —</option>
-              {% for s in students %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
-            </select>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Date</label>
-            <input type="date" name="date" class="form-control" value="{{ today }}" required/>
-          </div>
-          <div class="mb-4">
-            <label class="form-label">Status</label>
-            <div class="d-flex gap-3 mt-1">
-              <div class="form-check">
-                <input class="form-check-input" type="radio" name="status_val" value="present" id="present" checked/>
-                <label class="form-check-label" for="present" style="color:#10b981;">✅ Present</label>
+        </div>
+
+        <!-- Right panel: shown only after Load Students -->
+        <div class="col-lg-8">
+          <div id="markPanel" class="form-card" style="display:none;">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+              <div>
+                <div style="font-weight:700;font-size:15px;" id="panelCourse"></div>
+                <div style="font-size:12px;color:var(--muted);" id="panelDate"></div>
               </div>
-              <div class="form-check">
-                <input class="form-check-input" type="radio" name="status_val" value="absent" id="absent"/>
-                <label class="form-check-label" for="absent" style="color:#ef4444;">❌ Absent</label>
+              <div class="d-flex gap-2">
+                <button type="button" onclick="teacherMarkAll('present')" class="att-quick-btn att-present-btn">✅ All Present</button>
+                <button type="button" onclick="teacherMarkAll('absent')"  class="att-quick-btn att-absent-btn">❌ All Absent</button>
               </div>
             </div>
+            <form method="POST" action="/teacher/attendance/mark" id="bulkAttendanceForm">
+              <input type="hidden" name="subject_id" id="markFormSubjectId"/>
+              <input type="hidden" name="section_id" id="markFormSectionId"/>
+              <input type="hidden" name="date"       id="markFormDate"/>
+              <div class="students-slider mb-3" id="markStudentList"></div>
+              <button type="submit" class="btn btn-primary w-100">
+                <i class="bi bi-check-circle me-1"></i> Submit Attendance
+              </button>
+            </form>
           </div>
-          <button type="submit" class="btn btn-primary w-100"><i class="bi bi-check-circle me-1"></i> Submit Attendance</button>
-        </form>
+        </div>
       </div>
     </div>
 
-    <div class="col-md-8">
-      <div class="table-card">
-        <div class="table-header">
-          <span class="table-title">Attendance Records ({{ records|length }})</span>
-          <input id="tableSearch" type="text" class="form-control" placeholder="Search..." style="max-width:200px;"/>
+    <!-- TAB 2: VIEW ATTENDANCE -->
+    <div class="tab-pane fade" id="filterPane">
+      <div class="row g-4">
+        <div class="col-lg-4">
+          <div class="form-card">
+            <h6 class="card-section-title mb-3"><i class="bi bi-eye me-2" style="color:#818cf8;"></i>View Attendance</h6>
+            <div class="mb-3">
+              <label class="form-label">Subject &amp; Section</label>
+              <select id="viewAssignSelect" class="form-select">
+                <option value="">— Select —</option>
+                {% for a in assignments %}
+                <option value="{{ a.subject_id }}:{{ a.section_id }}">{{ a.label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Date <span style="font-size:11px;color:var(--muted);">(optional — blank = all dates)</span></label>
+              <input type="date" id="viewDateInput" class="form-control"/>
+            </div>
+            <button class="btn btn-primary w-100" onclick="loadAttendanceView()">
+              <i class="bi bi-eye me-1"></i> View
+            </button>
+          </div>
         </div>
-        {% if records %}
-        <div class="table-responsive">
-          <table class="table table-borderless">
-            <thead><tr><th>Student</th><th>Course</th><th>Date</th><th>Status</th></tr></thead>
-            <tbody>
-              {% for r in records %}
-              <tr>
-                <td>Student #{{ r.student_id }}</td>
-                <td>Course #{{ r.course_id }}</td>
-                <td class="text-muted-col">{{ r.date }}</td>
-                <td>
-                  {% if r.status == "present" %}<span class="badge-present">✅ Present</span>
-                  {% else %}<span class="badge-absent">❌ Absent</span>{% endif %}
-                </td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
+
+        <!-- Right: result shown only after View click -->
+        <div class="col-lg-8">
+          <div id="viewResultCard" class="table-card" style="display:none;">
+            <div class="table-header">
+              <span class="table-title" id="viewResultTitle"></span>
+            </div>
+            <div id="viewAttResult" style="padding:4px 0;"></div>
+          </div>
         </div>
-        {% else %}
-        <div class="empty-state"><i class="bi bi-calendar-x"></i><p>No records yet.</p></div>
-        {% endif %}
       </div>
     </div>
+
   </div>
 </main>
 
+<script>
+const ALL_STUDENTS = [{% for s in students %}{ id: {{ s.id }}, name: {{ s.name|tojson }} }{% if not loop.last %},{% endif %}{% endfor %}];
+
+function loadAttendanceView() {
+  var assignSel   = document.getElementById('viewAssignSelect');
+  var dateVal     = document.getElementById('viewDateInput').value;
+  var resultCard  = document.getElementById('viewResultCard');
+  var resultTitle = document.getElementById('viewResultTitle');
+  var resultDiv   = document.getElementById('viewAttResult');
+
+  var assignVal = assignSel ? assignSel.value : '';
+  if (!assignVal) {
+    resultCard.style.display = 'none';
+    var err = document.createElement('div');
+    err.style = 'margin-top:10px;padding:10px 14px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.25);border-radius:10px;font-size:13px;color:#ef4444;';
+    err.textContent = '⚠️ Subject & Section select karo';
+    assignSel.closest('.form-card').appendChild(err);
+    setTimeout(function(){ err.remove(); }, 3000);
+    return;
+  }
+
+  var label     = assignSel.options[assignSel.selectedIndex].text;
+  var parts     = assignVal.split(':');
+  var subjectId = parts[0] || '0';
+  var sectionId = parts[1] || '0';
+
+  resultCard.style.display = 'block';
+  resultTitle.textContent  = label + (dateVal ? ' — ' + dateVal : ' — All Dates');
+  resultDiv.innerHTML      = '<div style="text-align:center;padding:32px;color:var(--muted);"><span class="spinner-border spinner-border-sm me-2"></span>Loading...</div>';
+
+  fetch('/teacher/attendance/view?subject_id=' + subjectId + '&section_id=' + sectionId + '&date=' + dateVal)
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      var records = data.records || [];
+      if (records.length === 0) {
+        resultDiv.innerHTML = '<div class="empty-state" style="padding:40px 0;"><i class="bi bi-calendar-x"></i><p>Koi record nahi mila is selection ke liye.</p></div>';
+        return;
+      }
+      var totalPresent = records.filter(function(r){ return r.status === 'present'; }).length;
+      var totalAbs     = records.length - totalPresent;
+      var totalPct     = Math.round((totalPresent / records.length) * 100);
+      var pctColor     = totalPct >= 75 ? '#10b981' : '#ef4444';
+
+      var MONS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      function fmtD(iso){ var d = new Date(iso+'T00:00:00'); return d.getDate()+' '+MONS[d.getMonth()]+' '+d.getFullYear(); }
+
+      var html = '<div style="display:flex;gap:10px;flex-wrap:wrap;padding:14px 18px 10px;">'
+        +'<span style="background:rgba(16,185,129,0.12);color:#10b981;padding:4px 14px;border-radius:20px;font-size:13px;font-weight:700;">✅ Present: '+totalPresent+'</span>'
+        +'<span style="background:rgba(239,68,68,0.12);color:#ef4444;padding:4px 14px;border-radius:20px;font-size:13px;font-weight:700;">❌ Absent: '+totalAbs+'</span>'
+        +'<span style="background:rgba(59,130,246,0.12);color:#3b82f6;padding:4px 14px;border-radius:20px;font-size:13px;font-weight:700;">📊 Total: '+records.length+'</span>'
+        +'<span style="background:rgba(129,140,248,0.12);color:'+pctColor+';padding:4px 14px;border-radius:20px;font-size:13px;font-weight:700;">% '+totalPct+'%</span>'
+        +'</div>';
+      html += '<div style="overflow-x:auto;padding:0 4px 8px;"><table class="att-report-table"><thead><tr><th>#</th><th>Student</th><th>Date</th><th>Status</th></tr></thead><tbody>';
+      records.forEach(function(r, idx){
+        var badge = r.status === 'present'
+          ? '<span class="p-badge-present">Present</span>'
+          : '<span class="p-badge-absent">Absent</span>';
+        html += '<tr><td style="color:var(--muted);">'+(idx+1)+'</td><td><strong>'+r.student_name+'</strong></td><td>'+fmtD(r.date)+'</td><td>'+badge+'</td></tr>';
+      });
+      html += '</tbody></table></div>';
+      resultDiv.innerHTML = html;
+    })
+    .catch(function(){
+      resultDiv.innerHTML = '<div class="empty-state" style="padding:40px 0;"><i class="bi bi-wifi-off"></i><p>Data load nahi hua. Dobara try karo.</p></div>';
+    });
+}
+</script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="/static/js/app.js"></script>
 </body>

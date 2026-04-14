@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin – Structure | EduPortal</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet"/>
+  <link href="/static/css/style.css" rel="stylesheet"/>
+  <link href="/static/css/admin.css" rel="stylesheet"/>
+</head>
+<body>
+<aside class="sidebar">
+  <div class="sidebar-brand"><div class="brand-icon">🎓</div><span class="brand-name">EduPortal</span></div>
+  <div class="sidebar-role">Admin Panel</div>
+  <nav>
+    <a href="/admin/dashboard"        class="nav-link"><i class="bi bi-grid-1x2-fill"></i> Dashboard</a>
+    <div class="nav-section-label">Academic</div>
+    <a href="/admin/academic-courses" class="nav-link"><i class="bi bi-mortarboard-fill"></i> Programmes</a>
+    <a href="/admin/structure"        class="nav-link active"><i class="bi bi-diagram-3-fill"></i> Structure</a>
+    <a href="/admin/subjects"         class="nav-link"><i class="bi bi-journal-bookmark-fill"></i> Subjects</a>
+    <a href="/admin/assignments"      class="nav-link"><i class="bi bi-person-badge-fill"></i> Teacher Assign</a>
+    <div class="nav-section-label">Users</div>
+    <a href="/admin/teachers"         class="nav-link"><i class="bi bi-person-video3"></i> Teachers</a>
+    <a href="/admin/students"         class="nav-link"><i class="bi bi-people-fill"></i> Students</a>
+  </nav>
+  <div class="sidebar-user">
+    <div class="user-avatar">{{ user_name[0]|upper }}</div>
+    <div class="user-info"><div class="user-name">{{ user_name }}</div><div class="user-role">Administrator</div></div>
+    <a href="/logout" class="logout-btn"><i class="bi bi-box-arrow-right"></i></a>
+  </div>
+</aside>
+
+<main class="main-content">
+  <div class="page-title">Academic Structure</div>
+  <div class="page-subtitle">Define Years → Semesters → Sections under each programme</div>
+
+  <!-- Tabs -->
+  <ul class="nav nav-tabs mb-4">
+    <li class="nav-item">
+      <button class="nav-tab-btn active" data-bs-toggle="tab" data-bs-target="#yearsPane">
+        <i class="bi bi-calendar3 me-1"></i> Years <span class="tab-count">{{ years|length }}</span>
+      </button>
+    </li>
+    <li class="nav-item">
+      <button class="nav-tab-btn" data-bs-toggle="tab" data-bs-target="#semPane">
+        <i class="bi bi-layers-half me-1"></i> Semesters <span class="tab-count">{{ semesters|length }}</span>
+      </button>
+    </li>
+    <li class="nav-item">
+      <button class="nav-tab-btn" data-bs-toggle="tab" data-bs-target="#secPane">
+        <i class="bi bi-collection me-1"></i> Sections <span class="tab-count">{{ sections|length }}</span>
+      </button>
+    </li>
+  </ul>
+
+  <div class="tab-content">
+
+    <!-- YEARS TAB -->
+    <div class="tab-pane fade show active" id="yearsPane">
+      <div class="row g-4">
+        <div class="col-md-4">
+          <div class="form-card">
+            <h6 class="card-section-title mb-3"><i class="bi bi-plus-circle me-2" style="color:#3b82f6;"></i>Add Year</h6>
+            <form method="POST" action="/admin/years/add">
+              <div class="mb-3">
+                <label class="form-label">Programme</label>
+                <select name="course_id" class="form-select" required>
+                  <option value="">— Select Programme —</option>
+                  {% for c in courses %}<option value="{{ c.id }}">{{ c.name }} ({{ c.code }})</option>{% endfor %}
+                </select>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Year Number</label>
+                <select name="year_number" class="form-select" required>
+                  <option value="1">1st Year</option><option value="2">2nd Year</option>
+                  <option value="3">3rd Year</option><option value="4">4th Year</option>
+                </select>
+              </div>
+              <button type="submit" class="btn btn-primary w-100">Add Year</button>
+            </form>
+          </div>
+        </div>
+        <div class="col-md-8">
+          <div class="table-card">
+            <div class="table-header"><span class="table-title">All Years ({{ years|length }})</span></div>
+            {% if years %}
+            <div class="table-responsive">
+              <table class="table table-borderless">
+                <thead><tr><th>#</th><th>Programme</th><th>Year</th><th>Action</th></tr></thead>
+                <tbody>
+                  {% for y in years %}
+                  <tr>
+                    <td class="text-muted-col">{{ loop.index }}</td>
+                    <td><span class="badge-course">{{ course_map[y.course_id].code if y.course_id in course_map else "—" }}</span> {{ course_map[y.course_id].name if y.course_id in course_map else "—" }}</td>
+                    <td><span class="admin-year-badge">Year {{ y.year_number }}</span></td>
+                    <td>
+                      <form method="POST" action="/admin/years/delete/{{ y.id }}" style="display:inline;" onsubmit="return confirmDelete('Year '+{{ y.year_number }})">
+                        <button class="btn btn-danger btn-sm"><i class="bi bi-trash"></i></button>
+                      </form>
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            {% else %}
+            <div class="empty-state"><i class="bi bi-calendar3"></i><p>No years defined yet.</p></div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SEMESTERS TAB -->
+    <div class="tab-pane fade" id="semPane">
+      <div class="row g-4">
+        <div class="col-md-4">
+          <div class="form-card">
+            <h6 class="card-section-title mb-3"><i class="bi bi-plus-circle me-2" style="color:#818cf8;"></i>Add Semester</h6>
+            <form method="POST" action="/admin/semesters/add">
+              <div class="mb-3">
+                <label class="form-label">Year</label>
+                <select name="year_id" class="form-select" required>
+                  <option value="">— Select Year —</option>
+                  {% for y in years %}
+                  <option value="{{ y.id }}">{{ course_map[y.course_id].code if y.course_id in course_map else "" }} — Year {{ y.year_number }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Semester Number</label>
+                <select name="semester_number" class="form-select" required>
+                  <option value="1">Semester 1</option><option value="2">Semester 2</option>
+                </select>
+              </div>
+              <button type="submit" class="btn btn-primary w-100">Add Semester</button>
+            </form>
+          </div>
+        </div>
+        <div class="col-md-8">
+          <div class="table-card">
+            <div class="table-header"><span class="table-title">All Semesters ({{ semesters|length }})</span></div>
+            {% if semesters %}
+            <div class="table-responsive">
+              <table class="table table-borderless">
+                <thead><tr><th>#</th><th>Programme</th><th>Year</th><th>Semester</th><th>Action</th></tr></thead>
+                <tbody>
+                  {% for s in semesters %}
+                  {% set yr = year_map[s.year_id] if s.year_id in year_map else None %}
+                  <tr>
+                    <td class="text-muted-col">{{ loop.index }}</td>
+                    <td>{% if yr %}<span class="badge-course">{{ course_map[yr.course_id].code if yr.course_id in course_map else "—" }}</span>{% endif %}</td>
+                    <td>{% if yr %}<span class="admin-year-badge">Year {{ yr.year_number }}</span>{% endif %}</td>
+                    <td><span class="admin-sem-badge">Sem {{ s.semester_number }}</span></td>
+                    <td>
+                      <form method="POST" action="/admin/semesters/delete/{{ s.id }}" style="display:inline;" onsubmit="return confirmDelete('Semester '+{{ s.semester_number }})">
+                        <button class="btn btn-danger btn-sm"><i class="bi bi-trash"></i></button>
+                      </form>
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            {% else %}
+            <div class="empty-state"><i class="bi bi-layers-half"></i><p>No semesters defined yet.</p></div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTIONS TAB -->
+    <div class="tab-pane fade" id="secPane">
+      <div class="row g-4">
+        <div class="col-md-4">
+          <div class="form-card">
+            <h6 class="card-section-title mb-3"><i class="bi bi-plus-circle me-2" style="color:#f59e0b;"></i>Add Section</h6>
+            <form method="POST" action="/admin/sections/add">
+              <div class="mb-3">
+                <label class="form-label">Semester</label>
+                <select name="semester_id" class="form-select" required>
+                  <option value="">— Select Semester —</option>
+                  {% for s in semesters %}
+                  {% set yr = year_map[s.year_id] if s.year_id in year_map else None %}
+                  <option value="{{ s.id }}">
+                    {% if yr %}{{ course_map[yr.course_id].code if yr.course_id in course_map else "" }} Y{{ yr.year_number }}{% endif %} — Sem {{ s.semester_number }}
+                  </option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Section Name</label>
+                <input type="text" name="name" class="form-control" placeholder="e.g. A, B, C" maxlength="5" required/>
+              </div>
+              <button type="submit" class="btn btn-primary w-100">Add Section</button>
+            </form>
+          </div>
+        </div>
+        <div class="col-md-8">
+          <div class="table-card">
+            <div class="table-header"><span class="table-title">All Sections ({{ sections|length }})</span></div>
+            {% if sections %}
+            <div class="table-responsive">
+              <table class="table table-borderless">
+                <thead><tr><th>#</th><th>Programme</th><th>Year</th><th>Semester</th><th>Section</th><th>Action</th></tr></thead>
+                <tbody>
+                  {% for sec in sections %}
+                  {% set sem = semester_map[sec.semester_id] if sec.semester_id in semester_map else None %}
+                  {% set yr  = year_map[sem.year_id] if sem and sem.year_id in year_map else None %}
+                  <tr>
+                    <td class="text-muted-col">{{ loop.index }}</td>
+                    <td>{% if yr %}<span class="badge-course">{{ course_map[yr.course_id].code if yr.course_id in course_map else "—" }}</span>{% endif %}</td>
+                    <td>{% if yr %}<span class="admin-year-badge">Y{{ yr.year_number }}</span>{% endif %}</td>
+                    <td>{% if sem %}<span class="admin-sem-badge">S{{ sem.semester_number }}</span>{% endif %}</td>
+                    <td><span class="admin-sec-badge">{{ sec.name }}</span></td>
+                    <td>
+                      <form method="POST" action="/admin/sections/delete/{{ sec.id }}" style="display:inline;" onsubmit="return confirmDelete('Section '+{{ sec.name|tojson }})">
+                        <button class="btn btn-danger btn-sm"><i class="bi bi-trash"></i></button>
+                      </form>
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            {% else %}
+            <div class="empty-state"><i class="bi bi-collection"></i><p>No sections defined yet.</p></div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="/static/js/app.js"></script>
+</body>
+</html>

@@ -7,15 +7,21 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"/>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet"/>
   <link href="/static/css/style.css" rel="stylesheet"/>
+  <link href="/static/css/admin.css" rel="stylesheet"/>
 </head>
 <body>
 <aside class="sidebar">
   <div class="sidebar-brand"><div class="brand-icon">🎓</div><span class="brand-name">EduPortal</span></div>
   <div class="sidebar-role">Admin Panel</div>
   <nav>
-    <a href="/admin/dashboard" class="nav-link"><i class="bi bi-grid-1x2-fill"></i> Dashboard</a>
-    <a href="/admin/teachers"  class="nav-link active"><i class="bi bi-person-badge"></i> Teachers</a>
-    <a href="/admin/students"  class="nav-link"><i class="bi bi-people"></i> Students</a>
+    <a href="/admin/dashboard"        class="nav-link"><i class="bi bi-grid-1x2-fill"></i> Dashboard</a>
+    <div class="nav-section-label">Academic</div>
+    <a href="/admin/academic-courses" class="nav-link"><i class="bi bi-mortarboard-fill"></i> Programmes</a>
+    <a href="/admin/structure"        class="nav-link"><i class="bi bi-diagram-3-fill"></i> Structure</a>
+    <a href="/admin/subjects"         class="nav-link"><i class="bi bi-journal-bookmark-fill"></i> Subjects</a>
+    <div class="nav-section-label">Users</div>
+    <a href="/admin/teachers"         class="nav-link active"><i class="bi bi-person-video3"></i> Teachers</a>
+    <a href="/admin/students"         class="nav-link"><i class="bi bi-people-fill"></i> Students</a>
   </nav>
   <div class="sidebar-user">
     <div class="user-avatar">{{ user_name[0]|upper }}</div>
@@ -28,66 +34,306 @@
   <div class="d-flex align-items-center justify-content-between mb-4">
     <div>
       <div class="page-title">Teachers</div>
-      <div class="page-subtitle">Manage all teaching staff</div>
+      <div class="page-subtitle">Add teachers and assign subjects in one step</div>
     </div>
-    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addModal">
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addTeacherModal">
       <i class="bi bi-plus-lg me-1"></i> Add Teacher
     </button>
   </div>
 
-  <div class="table-card">
-    <div class="table-header">
-      <span class="table-title">All Teachers ({{ teachers|length }})</span>
-      <input id="tableSearch" type="text" class="form-control" placeholder="Search..." style="max-width:200px;"/>
+  <!-- ── Tab Nav ─────────────────────────────────────────────────────── -->
+  <ul class="nav nav-tabs mb-4" style="border-bottom:1px solid var(--border);">
+    <li class="nav-item">
+      <button class="nav-tab-btn active" data-bs-toggle="tab" data-bs-target="#teacherListPane" type="button">
+        <i class="bi bi-person-video3 me-1"></i> Teacher List
+        <span class="tab-count">{{ teachers|length }}</span>
+      </button>
+    </li>
+    <li class="nav-item">
+      <button class="nav-tab-btn" data-bs-toggle="tab" data-bs-target="#assignmentsPane" type="button">
+        <i class="bi bi-person-badge-fill me-1"></i> Subject Assignments
+        <span class="tab-count" style="background:rgba(16,185,129,0.2);color:#10b981;">{{ enriched_assignments|length }}</span>
+      </button>
+    </li>
+  </ul>
+
+  <div class="tab-content">
+
+    <!-- ── TAB 1: TEACHER LIST ── -->
+    <div class="tab-pane fade show active" id="teacherListPane">
+      <div class="table-card">
+        <div class="table-header">
+          <span class="table-title">All Teachers ({{ teachers|length }})</span>
+          <input id="tableSearch" type="text" class="form-control" placeholder="Search..." style="max-width:200px;"/>
+        </div>
+        {% if teachers %}
+        <div class="table-responsive">
+          <table class="table table-borderless">
+            <thead>
+              <tr><th>#</th><th>Name</th><th>Email</th><th>Assigned Subjects</th><th>Actions</th></tr>
+            </thead>
+            <tbody>
+              {% for t in teachers %}
+              {% set t_assigns = enriched_assignments | selectattr("teacher_name","equalto",t.name) | list %}
+              <tr>
+                <td class="text-muted-col">{{ loop.index }}</td>
+                <td>
+                  <div class="d-flex align-items-center gap-2">
+                    <div class="user-avatar" style="width:32px;height:32px;font-size:12px;">{{ t.name[0]|upper }}</div>
+                    <strong>{{ t.name }}</strong>
+                  </div>
+                </td>
+                <td class="text-muted-col">{{ t.email }}</td>
+                <td>
+                  {% if t_assigns %}
+                    {% for a in t_assigns %}
+                    <span class="badge-course" style="font-size:11px;margin:2px;">
+                      {{ a.course_code }} Y{{ a.year_number }} S{{ a.sem_number }} §{{ a.section_name }} — {{ a.subject_name }}
+                    </span>
+                    {% endfor %}
+                  {% else %}
+                  <span style="color:var(--muted);font-size:12px;">No subjects assigned</span>
+                  {% endif %}
+                </td>
+                <td>
+                  <div class="d-flex gap-2">
+                    <!-- Assign more subjects -->
+                    <button class="btn btn-sm"
+                            style="background:rgba(16,185,129,0.12);color:#10b981;border:1px solid rgba(16,185,129,0.3);border-radius:8px;font-size:12px;padding:5px 10px;"
+                            data-bs-toggle="modal"
+                            data-bs-target="#assignModal"
+                            onclick="setAssignTeacher({{ t.id }}, '{{ t.name }}')">
+                      <i class="bi bi-plus-circle me-1"></i>Assign
+                    </button>
+                    <!-- Delete teacher -->
+                    <form method="POST" action="/admin/teachers/delete/{{ t.id }}" style="display:inline;"
+                          onsubmit="return confirmDelete('{{ t.name }}')">
+                      <button class="btn btn-danger btn-sm"><i class="bi bi-trash"></i></button>
+                    </form>
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+          <i class="bi bi-person-badge"></i>
+          <p>No teachers yet. Click <strong>"Add Teacher"</strong> to get started.</p>
+        </div>
+        {% endif %}
+      </div>
     </div>
-    {% if teachers %}
-    <div class="table-responsive">
-      <table class="table table-borderless">
-        <thead><tr><th>#</th><th>Name</th><th>Email</th><th>Action</th></tr></thead>
-        <tbody>
-          {% for t in teachers %}
-          <tr>
-            <td class="text-muted-col">{{ loop.index }}</td>
-            <td>
-              <div class="d-flex align-items-center gap-2">
-                <div class="user-avatar" style="width:32px;height:32px;font-size:12px;">{{ t.name[0]|upper }}</div>
-                {{ t.name }}
-              </div>
-            </td>
-            <td class="text-muted-col">{{ t.email }}</td>
-            <td>
-              <form method="POST" action="/admin/teachers/delete/{{ t.id }}" style="display:inline;"
-                    onsubmit="return confirmDelete('{{ t.name }}')">
-                <button class="btn btn-danger btn-sm"><i class="bi bi-trash"></i> Delete</button>
-              </form>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+
+    <!-- ── TAB 2: ASSIGNMENTS TABLE ── -->
+    <div class="tab-pane fade" id="assignmentsPane">
+      <div class="table-card">
+        <div class="table-header">
+          <span class="table-title">All Teacher Assignments ({{ enriched_assignments|length }})</span>
+          <input id="assignSearch" type="text" class="form-control" placeholder="Search..." style="max-width:200px;"/>
+        </div>
+        {% if enriched_assignments %}
+        <div class="table-responsive">
+          <table class="table table-borderless" id="assignTable">
+            <thead>
+              <tr><th>#</th><th>Teacher</th><th>Programme</th><th>Year</th><th>Sem</th><th>Section</th><th>Subject</th><th>Action</th></tr>
+            </thead>
+            <tbody>
+              {% for a in enriched_assignments %}
+              <tr>
+                <td class="text-muted-col">{{ loop.index }}</td>
+                <td>
+                  <div class="d-flex align-items-center gap-2">
+                    <div class="user-avatar" style="width:28px;height:28px;font-size:11px;background:linear-gradient(135deg,#f59e0b,#d97706);">
+                      {{ a.teacher_name[0]|upper }}
+                    </div>
+                    <strong>{{ a.teacher_name }}</strong>
+                  </div>
+                </td>
+                <td><span class="badge-course">{{ a.course_code }}</span></td>
+                <td><span class="admin-year-badge">Y{{ a.year_number }}</span></td>
+                <td><span class="admin-sem-badge">S{{ a.sem_number }}</span></td>
+                <td><span class="admin-sec-badge">{{ a.section_name }}</span></td>
+                <td>
+                  <div style="font-size:13px;font-weight:500;">{{ a.subject_name }}</div>
+                  {% if a.subject_code %}<span class="badge-course" style="font-size:11px;">{{ a.subject_code }}</span>{% endif %}
+                </td>
+                <td>
+                  <form method="POST" action="/admin/teachers/assignment/delete/{{ a.id }}" style="display:inline;"
+                        onsubmit="return confirmDelete('this assignment')">
+                    <button class="btn btn-danger btn-sm"><i class="bi bi-trash"></i></button>
+                  </form>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+          <i class="bi bi-person-badge"></i>
+          <p>No assignments yet. Add a teacher and assign subjects.</p>
+        </div>
+        {% endif %}
+      </div>
     </div>
-    {% else %}
-    <div class="empty-state"><i class="bi bi-person-badge"></i><p>No teachers yet. Click "Add Teacher".</p></div>
-    {% endif %}
+
   </div>
 </main>
 
-<div class="modal fade" id="addModal" tabindex="-1">
-  <div class="modal-dialog modal-dialog-centered">
+<!-- ═══ ADD TEACHER MODAL (with cascade assignment) ═══ -->
+<div class="modal fade" id="addTeacherModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title">Add New Teacher</h5>
+        <h5 class="modal-title">
+          <i class="bi bi-person-plus-fill me-2" style="color:var(--accent);"></i>Add New Teacher
+        </h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <form method="POST" action="/admin/teachers/add">
         <div class="modal-body">
-          <div class="mb-3"><label class="form-label">Full Name</label><input type="text" name="name" class="form-control" placeholder="Enter Teacher Name" required/></div>
-          <div class="mb-3"><label class="form-label">Email</label><input type="email" name="email" class="form-control" placeholder="Email" required/></div>
-          <div class="mb-3"><label class="form-label">Password</label><input type="password" name="password" class="form-control" placeholder="Set a password" required/></div>
+
+          <!-- Basic Info -->
+          <div class="admin-info-box mb-3" style="background:rgba(59,130,246,0.07);border-color:rgba(59,130,246,0.2);">
+            <i class="bi bi-person-fill me-1" style="color:#3b82f6;"></i>
+            <strong style="color:#3b82f6;">Teacher Information</strong>
+          </div>
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <label class="form-label">Full Name <span style="color:#ef4444">*</span></label>
+              <input type="text" name="name" class="form-control" placeholder="e.g. Dr. Rahul Sharma" required/>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Email <span style="color:#ef4444">*</span></label>
+              <input type="email" name="email" class="form-control" placeholder="teacher@college.edu" required/>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Password <span style="color:#ef4444">*</span></label>
+              <input type="password" name="password" class="form-control" placeholder="Set login password" required/>
+            </div>
+          </div>
+
+          <!-- Assignment (optional) -->
+          <div class="admin-info-box mb-3" style="background:rgba(16,185,129,0.07);border-color:rgba(16,185,129,0.2);">
+            <i class="bi bi-link-45deg me-1" style="color:#10b981;"></i>
+            <strong style="color:#10b981;">Assign Subject</strong>
+            <span style="color:var(--muted);font-size:12px;margin-left:6px;">(optional — can be done later)</span>
+          </div>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Programme</label>
+              <select name="course_id" id="tchAddCourse" class="form-select"
+                      onchange="cascadeLoad('tchAddCourse','tchAddYear','/api/years?course_id=','Year','year_number','Year',['tchAddSem','tchAddSection','tchAddSubject'])">
+                <option value="">— Select Programme —</option>
+                {% for c in courses %}
+                <option value="{{ c.id }}">{{ c.name }} ({{ c.code }})</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Year</label>
+              <select name="year_id" id="tchAddYear" class="form-select"
+                      onchange="cascadeLoad('tchAddYear','tchAddSem','/api/semesters?year_id=','Semester','semester_number','Semester',['tchAddSection','tchAddSubject'])">
+                <option value="">— Select Year —</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Semester</label>
+              <select name="semester_id" id="tchAddSem" class="form-select"
+                      onchange="cascadeLoadDouble('tchAddSem',
+                        'tchAddSection','/api/sections?semester_id=','Section','name','Section',
+                        'tchAddSubject','/api/subjects?semester_id=','Subject','name','Subject')">
+                <option value="">— Select Semester —</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Section</label>
+              <select name="section_id" id="tchAddSection" class="form-select">
+                <option value="">— Select Section —</option>
+              </select>
+            </div>
+            <div class="col-md-12">
+              <label class="form-label">Subject</label>
+              <select name="subject_id" id="tchAddSubject" class="form-select">
+                <option value="">— Select Subject —</option>
+              </select>
+            </div>
+          </div>
+
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-          <button type="submit" class="btn btn-primary">Add Teacher</button>
+          <button type="submit" class="btn btn-primary">
+            <i class="bi bi-person-plus me-1"></i> Add Teacher
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ ASSIGN MORE SUBJECTS TO EXISTING TEACHER ═══ -->
+<div class="modal fade" id="assignModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="bi bi-link-45deg me-2" style="color:#10b981;"></i>
+          Assign Subject — <span id="assignTeacherName" style="color:#10b981;"></span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="POST" action="/admin/teachers/assign">
+        <input type="hidden" name="teacher_id" id="assignTeacherId"/>
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Programme <span style="color:#ef4444">*</span></label>
+              <select name="course_id" id="asCourse" class="form-select" required
+                      onchange="cascadeLoad('asCourse','asYear','/api/years?course_id=','Year','year_number','Year',['asSem','asSection','asSubject'])">
+                <option value="">— Select Programme —</option>
+                {% for c in courses %}
+                <option value="{{ c.id }}">{{ c.name }} ({{ c.code }})</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Year <span style="color:#ef4444">*</span></label>
+              <select name="year_id" id="asYear" class="form-select" required
+                      onchange="cascadeLoad('asYear','asSem','/api/semesters?year_id=','Semester','semester_number','Semester',['asSection','asSubject'])">
+                <option value="">— Select Year —</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Semester <span style="color:#ef4444">*</span></label>
+              <select name="semester_id" id="asSem" class="form-select" required
+                      onchange="cascadeLoadDouble('asSem',
+                        'asSection','/api/sections?semester_id=','Section','name','Section',
+                        'asSubject','/api/subjects?semester_id=','Subject','name','Subject')">
+                <option value="">— Select Semester —</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Section <span style="color:#ef4444">*</span></label>
+              <select name="section_id" id="asSection" class="form-select" required>
+                <option value="">— Select Section —</option>
+              </select>
+            </div>
+            <div class="col-md-12">
+              <label class="form-label">Subject <span style="color:#ef4444">*</span></label>
+              <select name="subject_id" id="asSubject" class="form-select" required>
+                <option value="">— Select Subject —</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">
+            <i class="bi bi-link-45deg me-1"></i> Assign Subject
+          </button>
         </div>
       </form>
     </div>
@@ -96,5 +342,402 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="/static/js/app.js"></script>
+<script src="/static/js/admin.js"></script>
+<script>
+// Set teacher id/name when "Assign" button clicked
+function setAssignTeacher(id, name) {
+  document.getElementById('assignTeacherId').value = id;
+  document.getElementById('assignTeacherName').textContent = name;
+  // Reset all cascade dropdowns
+  ['asCourse','asYear','asSem','asSection','asSubject'].forEach(function(id){
+    var el = document.getElementById(id);
+    if (el) el.innerHTML = el.id === 'asCourse'
+      ? el.innerHTML  // keep courses
+      : '<option value="">— Select —</option>';
+  });
+}
+
+// Search on assignments tab
+document.addEventListener('DOMContentLoaded', function() {
+  var s = document.getElementById('assignSearch');
+  if (s) s.addEventListener('input', function() {
+    var q = this.value.toLowerCase();
+    document.querySelectorAll('#assignTable tbody tr').forEach(function(row) {
+      row.style.display = row.textContent.toLowerCase().includes(q) ? '' : 'none';
+    });
+  });
+});
+</script>
+</body>
+</html><!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin – Teachers | EduPortal</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet"/>
+  <link href="/static/css/style.css" rel="stylesheet"/>
+  <link href="/static/css/admin.css" rel="stylesheet"/>
+</head>
+<body>
+<aside class="sidebar">
+  <div class="sidebar-brand"><div class="brand-icon">🎓</div><span class="brand-name">EduPortal</span></div>
+  <div class="sidebar-role">Admin Panel</div>
+  <nav>
+    <a href="/admin/dashboard"        class="nav-link"><i class="bi bi-grid-1x2-fill"></i> Dashboard</a>
+    <div class="nav-section-label">Academic</div>
+    <a href="/admin/academic-courses" class="nav-link"><i class="bi bi-mortarboard-fill"></i> Programmes</a>
+    <a href="/admin/structure"        class="nav-link"><i class="bi bi-diagram-3-fill"></i> Structure</a>
+    <a href="/admin/subjects"         class="nav-link"><i class="bi bi-journal-bookmark-fill"></i> Subjects</a>
+    <div class="nav-section-label">Users</div>
+    <a href="/admin/teachers"         class="nav-link active"><i class="bi bi-person-video3"></i> Teachers</a>
+    <a href="/admin/students"         class="nav-link"><i class="bi bi-people-fill"></i> Students</a>
+  </nav>
+  <div class="sidebar-user">
+    <div class="user-avatar">{{ user_name[0]|upper }}</div>
+    <div class="user-info"><div class="user-name">{{ user_name }}</div><div class="user-role">Administrator</div></div>
+    <a href="/logout" class="logout-btn"><i class="bi bi-box-arrow-right"></i></a>
+  </div>
+</aside>
+
+<main class="main-content">
+  <div class="d-flex align-items-center justify-content-between mb-4">
+    <div>
+      <div class="page-title">Teachers</div>
+      <div class="page-subtitle">Add teachers and assign subjects in one step</div>
+    </div>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addTeacherModal">
+      <i class="bi bi-plus-lg me-1"></i> Add Teacher
+    </button>
+  </div>
+
+  <!-- ── Tab Nav ─────────────────────────────────────────────────────── -->
+  <ul class="nav nav-tabs mb-4" style="border-bottom:1px solid var(--border);">
+    <li class="nav-item">
+      <button class="nav-tab-btn active" data-bs-toggle="tab" data-bs-target="#teacherListPane" type="button">
+        <i class="bi bi-person-video3 me-1"></i> Teacher List
+        <span class="tab-count">{{ teachers|length }}</span>
+      </button>
+    </li>
+    <li class="nav-item">
+      <button class="nav-tab-btn" data-bs-toggle="tab" data-bs-target="#assignmentsPane" type="button">
+        <i class="bi bi-person-badge-fill me-1"></i> Subject Assignments
+        <span class="tab-count" style="background:rgba(16,185,129,0.2);color:#10b981;">{{ enriched_assignments|length }}</span>
+      </button>
+    </li>
+  </ul>
+
+  <div class="tab-content">
+
+    <!-- ── TAB 1: TEACHER LIST ── -->
+    <div class="tab-pane fade show active" id="teacherListPane">
+      <div class="table-card">
+        <div class="table-header">
+          <span class="table-title">All Teachers ({{ teachers|length }})</span>
+          <input id="tableSearch" type="text" class="form-control" placeholder="Search..." style="max-width:200px;"/>
+        </div>
+        {% if teachers %}
+        <div class="table-responsive">
+          <table class="table table-borderless">
+            <thead>
+              <tr><th>#</th><th>Name</th><th>Email</th><th>Assigned Subjects</th><th>Actions</th></tr>
+            </thead>
+            <tbody>
+              {% for t in teachers %}
+              {% set t_assigns = enriched_assignments | selectattr("teacher_name","equalto",t.name) | list %}
+              <tr>
+                <td class="text-muted-col">{{ loop.index }}</td>
+                <td>
+                  <div class="d-flex align-items-center gap-2">
+                    <div class="user-avatar" style="width:32px;height:32px;font-size:12px;">{{ t.name[0]|upper }}</div>
+                    <strong>{{ t.name }}</strong>
+                  </div>
+                </td>
+                <td class="text-muted-col">{{ t.email }}</td>
+                <td>
+                  {% if t_assigns %}
+                    {% for a in t_assigns %}
+                    <span class="badge-course" style="font-size:11px;margin:2px;">
+                      {{ a.course_code }} Y{{ a.year_number }} S{{ a.sem_number }} §{{ a.section_name }} — {{ a.subject_name }}
+                    </span>
+                    {% endfor %}
+                  {% else %}
+                  <span style="color:var(--muted);font-size:12px;">No subjects assigned</span>
+                  {% endif %}
+                </td>
+                <td>
+                  <div class="d-flex gap-2">
+                    <!-- Assign more subjects -->
+                    <button class="btn btn-sm"
+                            style="background:rgba(16,185,129,0.12);color:#10b981;border:1px solid rgba(16,185,129,0.3);border-radius:8px;font-size:12px;padding:5px 10px;"
+                            data-bs-toggle="modal"
+                            data-bs-target="#assignModal"
+                            onclick="setAssignTeacher({{ t.id }}, '{{ t.name }}')">
+                      <i class="bi bi-plus-circle me-1"></i>Assign
+                    </button>
+                    <!-- Delete teacher -->
+                    <form method="POST" action="/admin/teachers/delete/{{ t.id }}" style="display:inline;"
+                          onsubmit="return confirmDelete('{{ t.name }}')">
+                      <button class="btn btn-danger btn-sm"><i class="bi bi-trash"></i></button>
+                    </form>
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+          <i class="bi bi-person-badge"></i>
+          <p>No teachers yet. Click <strong>"Add Teacher"</strong> to get started.</p>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- ── TAB 2: ASSIGNMENTS TABLE ── -->
+    <div class="tab-pane fade" id="assignmentsPane">
+      <div class="table-card">
+        <div class="table-header">
+          <span class="table-title">All Teacher Assignments ({{ enriched_assignments|length }})</span>
+          <input id="assignSearch" type="text" class="form-control" placeholder="Search..." style="max-width:200px;"/>
+        </div>
+        {% if enriched_assignments %}
+        <div class="table-responsive">
+          <table class="table table-borderless" id="assignTable">
+            <thead>
+              <tr><th>#</th><th>Teacher</th><th>Programme</th><th>Year</th><th>Sem</th><th>Section</th><th>Subject</th><th>Action</th></tr>
+            </thead>
+            <tbody>
+              {% for a in enriched_assignments %}
+              <tr>
+                <td class="text-muted-col">{{ loop.index }}</td>
+                <td>
+                  <div class="d-flex align-items-center gap-2">
+                    <div class="user-avatar" style="width:28px;height:28px;font-size:11px;background:linear-gradient(135deg,#f59e0b,#d97706);">
+                      {{ a.teacher_name[0]|upper }}
+                    </div>
+                    <strong>{{ a.teacher_name }}</strong>
+                  </div>
+                </td>
+                <td><span class="badge-course">{{ a.course_code }}</span></td>
+                <td><span class="admin-year-badge">Y{{ a.year_number }}</span></td>
+                <td><span class="admin-sem-badge">S{{ a.sem_number }}</span></td>
+                <td><span class="admin-sec-badge">{{ a.section_name }}</span></td>
+                <td>
+                  <div style="font-size:13px;font-weight:500;">{{ a.subject_name }}</div>
+                  {% if a.subject_code %}<span class="badge-course" style="font-size:11px;">{{ a.subject_code }}</span>{% endif %}
+                </td>
+                <td>
+                  <form method="POST" action="/admin/teachers/assignment/delete/{{ a.id }}" style="display:inline;"
+                        onsubmit="return confirmDelete('this assignment')">
+                    <button class="btn btn-danger btn-sm"><i class="bi bi-trash"></i></button>
+                  </form>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+          <i class="bi bi-person-badge"></i>
+          <p>No assignments yet. Add a teacher and assign subjects.</p>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<!-- ═══ ADD TEACHER MODAL (with cascade assignment) ═══ -->
+<div class="modal fade" id="addTeacherModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="bi bi-person-plus-fill me-2" style="color:var(--accent);"></i>Add New Teacher
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="POST" action="/admin/teachers/add">
+        <div class="modal-body">
+
+          <!-- Basic Info -->
+          <div class="admin-info-box mb-3" style="background:rgba(59,130,246,0.07);border-color:rgba(59,130,246,0.2);">
+            <i class="bi bi-person-fill me-1" style="color:#3b82f6;"></i>
+            <strong style="color:#3b82f6;">Teacher Information</strong>
+          </div>
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <label class="form-label">Full Name <span style="color:#ef4444">*</span></label>
+              <input type="text" name="name" class="form-control" placeholder="e.g. Dr. Rahul Sharma" required/>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Email <span style="color:#ef4444">*</span></label>
+              <input type="email" name="email" class="form-control" placeholder="teacher@college.edu" required/>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Password <span style="color:#ef4444">*</span></label>
+              <input type="password" name="password" class="form-control" placeholder="Set login password" required/>
+            </div>
+          </div>
+
+          <!-- Assignment (optional) -->
+          <div class="admin-info-box mb-3" style="background:rgba(16,185,129,0.07);border-color:rgba(16,185,129,0.2);">
+            <i class="bi bi-link-45deg me-1" style="color:#10b981;"></i>
+            <strong style="color:#10b981;">Assign Subject</strong>
+            <span style="color:var(--muted);font-size:12px;margin-left:6px;">(optional — can be done later)</span>
+          </div>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Programme</label>
+              <select name="course_id" id="tchAddCourse" class="form-select"
+                      onchange="cascadeLoad('tchAddCourse','tchAddYear','/api/years?course_id=','Year','year_number','Year',['tchAddSem','tchAddSection','tchAddSubject'])">
+                <option value="">— Select Programme —</option>
+                {% for c in courses %}
+                <option value="{{ c.id }}">{{ c.name }} ({{ c.code }})</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Year</label>
+              <select name="year_id" id="tchAddYear" class="form-select"
+                      onchange="cascadeLoad('tchAddYear','tchAddSem','/api/semesters?year_id=','Semester','semester_number','Semester',['tchAddSection','tchAddSubject'])">
+                <option value="">— Select Year —</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Semester</label>
+              <select name="semester_id" id="tchAddSem" class="form-select"
+                      onchange="cascadeLoadDouble('tchAddSem',
+                        'tchAddSection','/api/sections?semester_id=','Section','name','Section',
+                        'tchAddSubject','/api/subjects?semester_id=','Subject','name','Subject')">
+                <option value="">— Select Semester —</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Section</label>
+              <select name="section_id" id="tchAddSection" class="form-select">
+                <option value="">— Select Section —</option>
+              </select>
+            </div>
+            <div class="col-md-12">
+              <label class="form-label">Subject</label>
+              <select name="subject_id" id="tchAddSubject" class="form-select">
+                <option value="">— Select Subject —</option>
+              </select>
+            </div>
+          </div>
+
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">
+            <i class="bi bi-person-plus me-1"></i> Add Teacher
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ ASSIGN MORE SUBJECTS TO EXISTING TEACHER ═══ -->
+<div class="modal fade" id="assignModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="bi bi-link-45deg me-2" style="color:#10b981;"></i>
+          Assign Subject — <span id="assignTeacherName" style="color:#10b981;"></span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="POST" action="/admin/teachers/assign">
+        <input type="hidden" name="teacher_id" id="assignTeacherId"/>
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Programme <span style="color:#ef4444">*</span></label>
+              <select name="course_id" id="asCourse" class="form-select" required
+                      onchange="cascadeLoad('asCourse','asYear','/api/years?course_id=','Year','year_number','Year',['asSem','asSection','asSubject'])">
+                <option value="">— Select Programme —</option>
+                {% for c in courses %}
+                <option value="{{ c.id }}">{{ c.name }} ({{ c.code }})</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Year <span style="color:#ef4444">*</span></label>
+              <select name="year_id" id="asYear" class="form-select" required
+                      onchange="cascadeLoad('asYear','asSem','/api/semesters?year_id=','Semester','semester_number','Semester',['asSection','asSubject'])">
+                <option value="">— Select Year —</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Semester <span style="color:#ef4444">*</span></label>
+              <select name="semester_id" id="asSem" class="form-select" required
+                      onchange="cascadeLoadDouble('asSem',
+                        'asSection','/api/sections?semester_id=','Section','name','Section',
+                        'asSubject','/api/subjects?semester_id=','Subject','name','Subject')">
+                <option value="">— Select Semester —</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Section <span style="color:#ef4444">*</span></label>
+              <select name="section_id" id="asSection" class="form-select" required>
+                <option value="">— Select Section —</option>
+              </select>
+            </div>
+            <div class="col-md-12">
+              <label class="form-label">Subject <span style="color:#ef4444">*</span></label>
+              <select name="subject_id" id="asSubject" class="form-select" required>
+                <option value="">— Select Subject —</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">
+            <i class="bi bi-link-45deg me-1"></i> Assign Subject
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="/static/js/app.js"></script>
+<script src="/static/js/admin.js"></script>
+<script>
+// Set teacher id/name when "Assign" button clicked
+function setAssignTeacher(id, name) {
+  document.getElementById('assignTeacherId').value = id;
+  document.getElementById('assignTeacherName').textContent = name;
+  // Reset all cascade dropdowns
+  ['asCourse','asYear','asSem','asSection','asSubject'].forEach(function(id){
+    var el = document.getElementById(id);
+    if (el) el.innerHTML = el.id === 'asCourse'
+      ? el.innerHTML  // keep courses
+      : '<option value="">— Select —</option>';
+  });
+}
+
+// Search on assignments tab
+document.addEventListener('DOMContentLoaded', function() {
+  var s = document.getElementById('assignSearch');
+  if (s) s.addEventListener('input', function() {
+    var q = this.value.toLowerCase();
+    document.querySelectorAll('#assignTable tbody tr').forEach(function(row) {
+      row.style.display = row.textContent.toLowerCase().includes(q) ? '' : 'none';
+    });
+  });
+});
+</script>
 </body>
 </html>
